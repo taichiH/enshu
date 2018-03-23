@@ -1,0 +1,3 @@
+[submodule "negomo_enshu/StochHMM"]
+	path = negomo_enshu/StochHMM
+	url = https://github.com/KorfLab/StochHMM

@@ -1,4 +1,0 @@
-[submodule "StochHMM"]
-	path = StochHMM
-	url = https://github.com/KorfLab/StochHMM
-	ignore = dirty
