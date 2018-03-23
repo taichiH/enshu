@@ -1,5 +1,5 @@
 bool warn
-negomo/NegomoTask[] tasks
+negomo_enshu/NegomoTask[] tasks
 ---
 bool status
-negomo/NegomoTask task
+negomo_enshu/NegomoTask task

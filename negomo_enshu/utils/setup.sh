@@ -2,9 +2,9 @@
 
 # check path
 
-if [[ $(pwd | awk -F/ '{print $(NF-1)"/"$NF}') != "negomo/utils" ]]
+if [[ $(pwd | awk -F/ '{print $(NF-1)"/"$NF}') != "negomo_enshu/utils" ]]
 then
-    echo "setup must be conducted under negomo/utils."
+    echo "setup must be conducted under negomo_enshu/utils."
     exit
 fi
 
@@ -25,7 +25,7 @@ do
 done
 
 # first time build warnings
-if [[ $(rospack find negomo 2>&1 | grep 'not found') != "" ]]
+if [[ $(rospack find negomo_enshu 2>&1 | grep 'not found') != "" ]]
 then
     echo "please build package. once build has completed, source ~/.bashrc and re-run this script"
     exit
@@ -36,7 +36,7 @@ fi
 
 # hmmlib_dir=$(find / -name "StochHMMlib.h" 2>/dev/null)
 # hmmlib_dir=$(locate StochHMMlib.h | grep -m 1 "StochHMMlib.h")
-hmmlib_dir="$(rospack find negomo)/StochHMM/src"
+hmmlib_dir="$(rospack find negomo_enshu)/StochHMM/src"
 
 if [[ $hmmlib_dir == "" ]]
 then
@@ -83,44 +83,3 @@ do
     echo $write | xargs -0 -I{} sed -i "${write_to_line}i\{}" ../CMakeLists.txt
     j=$(($j + 1))
 done
-
-# find pomdplib
-
-pomdplib_dir="$(rospack find negomo)/appl/src"
-
-if [[ ! -d $pomdplib_dir ]]
-then
-    echo "optional appl not found, ignoring"
-    exit
-fi
-
-# appl crashes with ROS by default
-# switch to include dir (modified version) instead
-
-pomdplib_dir="$(rospack find negomo)/appl/include"
-
-# first time fails with warning as preparation script must run firs
-
-if [[ ! -d $pomdplib_dir ]]
-then
-    echo "please run modify_appl.sh and re-run script"
-    exit
-fi
-
-sed -i "s@set(FOUND_POMDPLIB 0)@set(FOUND_POMDPLIB 1)@g" ../CMakeLists.txt
-sed -i "s@include_directories() #pomdplib@include_directories($pomdplib_dir)@g" ../CMakeLists.txt
-sed -i "s@link_directories() #pomdplib@link_directories($pomdplib_dir)@g" ../CMakeLists.txt
-
-# copy library files from appl/CMakeLists.txt
-
-cut_from=$(grep -n -m 1 "add_library" $pomdplib_dir/../CMakeLists.txt | cut -d: -f1)
-cut_from=$(($cut_from + 1))
-cut_to=$(tail -n +$cut_from $pomdplib_dir/../CMakeLists.txt | grep -in -n -m 1 ")" | cut -d: -f1)
-cut_to=$(($cut_from + $cut_to - 2))
-cpps=$(awk 'NR >= '$cut_from' && NR <= '$cut_to'' $pomdplib_dir/../CMakeLists.txt)
-cpps=$(echo $cpps | sed -e "s@src/@${pomdplib_dir}/@g")
-
-write_to_line=$(grep -n "add_library(pomdplib" ../CMakeLists.txt | cut -d: -f1)
-write_to_line=$(($write_to_line + 2))
-
-echo $cpps | xargs -0 -I{} sed -i "${write_to_line}i\{}" ../CMakeLists.txt

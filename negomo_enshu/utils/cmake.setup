@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 2.8.3)
-project(negomo_utils)
+project(negomo_enshu)
 
 find_package(catkin REQUIRED COMPONENTS
   roscpp std_msgs message_generation roslib
