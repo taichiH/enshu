@@ -1,0 +1,5 @@
+bool proceed
+---
+bool nonext
+int32 next
+int32 priority

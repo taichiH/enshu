@@ -1,0 +1,7 @@
+confidence_thre: 0.5
+future_ref: 3
+past_flush: 3
+percept_unit_sec: 1.0
+timeout_ms: 2000
+action_liftoff_ratio: 500
+max_targets: 3

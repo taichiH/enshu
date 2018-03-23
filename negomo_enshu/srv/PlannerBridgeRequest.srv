@@ -1,0 +1,55 @@
+# target person id to interact with, -1 for anonymous
+int32 target
+
+# parameters for check() function, see NegomoLib.hh for details
+float32 check_threshold
+int32 check_options
+
+# as long as person is interested in robot,
+# robot will respond to person multiple times if flag is not set
+bool interact_only_once
+
+# set to false if robot is busy at task
+# should be true if robot is interaction capable
+bool enable_preinteraction
+
+# set to true if robot should warn person that robot is busy
+bool warn_avoid
+
+# execution time of task between iStart~iJoin
+# used to make sure task is finished by end of interaction
+# set negative value if task finishing time should be ignored
+int32 exec_time_ms
+
+# interaction flag constants
+int32 IGNORE=-1
+int32 OPENALL=0
+int32 OPENONE=1
+
+# flag of when interaction should be allowed (flag based on hand freeness)
+int32 interaction_flag
+
+# iJoin settings (see NegomoPlannerLib.hh for details)
+# 1 if join at end of action, 0 if in middle of action, -1 if in error
+int8 at_end
+# 1 if hand-free planning backward allowed, 0 if forward only, -1 if neither
+int8 backward_allowed
+
+# id of pre-interaction actions to jump to during interaction
+int32 preinteractionid
+int32 postinteractionid
+int32 postfalseinteractionid
+---
+# ROS srv cannot set default values in old versions
+# this srv is also used to obtain default values
+int32 target
+float32 check_threshold
+int32 check_options
+bool interact_only_once
+bool enable_preinteraction
+bool warn_avoid
+int8 at_end
+int8 backward_allowed
+int32 preinteractionid
+int32 postinteractionid
+int32 postfalseinteractionid

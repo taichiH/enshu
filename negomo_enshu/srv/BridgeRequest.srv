@@ -1,0 +1,7 @@
+string target
+string function
+string method
+bool flush_interaction
+---
+int32 proceed
+int32 status_change

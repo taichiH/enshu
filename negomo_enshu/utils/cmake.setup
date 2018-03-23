@@ -1,0 +1,126 @@
+cmake_minimum_required(VERSION 2.8.3)
+project(negomo_utils)
+
+find_package(catkin REQUIRED COMPONENTS
+  roscpp std_msgs message_generation roslib
+)
+
+find_package(Eigen3 REQUIRED)
+
+# generate messages
+
+add_message_files(
+  FILES
+  NegomoStatus.msg
+  NegomoSensors.msg
+  NegomoPlot.msg
+  NegomoTask.msg
+  VpActivate.msg
+  VpConnect.msg
+)
+
+add_service_files(
+  FILES
+  NegomoService.srv
+  RobotAction.srv
+  BridgeRequest.srv
+  PartialResultRequest.srv
+  RegisterActions.srv
+  WaitInterpolationRequest.srv
+  PlannerActionCall.srv
+  PlannerInteractionCall.srv
+  PlannerDefaultInteractionCall.srv
+  PlannerBridgeRequest.srv
+)
+
+generate_messages()
+
+catkin_package(
+  INCLUDE_DIRS include
+  LIBRARIES negomo_lib negomo_planner_lib negomo_lib2
+  CATKIN_DEPENDS
+  roscpp std_msgs
+)
+
+# add c++ dependencies
+
+add_definitions(-std=c++11)
+
+# add library
+
+find_package(roboenvcv)
+
+include_directories(
+  include
+  ${catkin_INCLUDE_DIRS}
+  ${EIGEN3_INCLUDE_DIR}
+)
+add_library(negomo_lib lib/NegomoLib.cc)
+target_link_libraries(negomo_lib ${catkin_LIBRARIES})
+add_dependencies(negomo_lib negomo_generate_messages_cpp)
+
+add_library(negomo_planner_lib lib/NegomoPlannerLib.cc)
+target_link_libraries(negomo_planner_lib ${catkin_LIBRARIES})
+add_dependencies(negomo_planner_lib negomo_generate_messages_cpp)
+
+add_library(negomo_lib2 lib/NegomoLib.cc lib/NegomoPlannerLib.cc lib/NegomoLib2.cc)
+target_link_libraries(negomo_lib2 ${catkin_LIBRARIES})
+add_dependencies(negomo_lib2 negomo_generate_messages_cpp)
+
+# add node
+add_executable(negomo_bridge nodes/negomo_bridge.cc lib/NegomoLib.cc)
+target_link_libraries(negomo_bridge ${catkin_LIBRARIES})
+add_dependencies(negomo_bridge negomo_generate_messages_cpp)
+
+if (roboenvcv_FOUND)
+  include_directories(${roboenvcv_INCLUDE_DIRS})
+  add_executable(negomo_sensor nodes/negomo_sensor.cc)
+  target_link_libraries(negomo_sensor ${catkin_LIBRARIES})
+  add_dependencies(negomo_sensor negomo_generate_messages_cpp)
+
+  add_executable(dummy_sensor_filter nodes/dummy_sensor_filtering.cc)
+  target_link_libraries(dummy_sensor_filter ${catkin_LIBRARIES})
+  add_dependencies(dummy_sensor_filter negomo_generate_messages_cpp)
+endif()
+
+
+# add examples
+
+# compile if StockHMM is found
+
+set(FOUND_HMMLIB 0)
+if(FOUND_HMMLIB)
+  message(STATUS "found hmmlib")
+  include_directories() #hmmlib
+  link_directories() #hmmlib
+  add_library(hmmlib
+    STATIC
+    )
+  SET_TARGET_PROPERTIES(
+    hmmlib
+    PROPERTIES
+    LINKER_LANGUAGE C
+    )
+  add_executable(negotiation_model src/main.cc src/negomo.cc src/test.cc)
+  target_link_libraries(negotiation_model ${catkin_LIBRARIES} hmmlib)
+  add_dependencies(negotiation_model negomo_generate_messages_cpp)
+else()
+  message(WARNING "hmmlib not found, not compiling some codes")
+endif()
+
+# compile if appl is found
+
+set(FOUND_POMDPLIB 0)
+if(FOUND_POMDPLIB)
+  message(STATUS "found pomdplib")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -msse2 -mfpmath=sse")
+  include_directories() #pomdplib
+  link_directories() #pomdplib
+  add_library(pomdplib
+    SHARED
+    )
+  add_executable(actionrun_test examples/src/actionrun_test.cc)
+  target_link_libraries(actionrun_test ${catkin_LIBRARIES} pomdplib)
+else()
+  message(WARNING "pomdplib not found, not compiling some codes")
+endif()

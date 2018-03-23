@@ -1,0 +1,8 @@
+float32 threshold
+int32 target
+int32 options
+---
+bool status
+int32[] ids
+int32[] states
+float32[] confidences

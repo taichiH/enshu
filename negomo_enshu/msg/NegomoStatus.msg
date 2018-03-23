@@ -1,0 +1,2 @@
+bool negotiating
+string state

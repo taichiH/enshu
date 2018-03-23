@@ -1,0 +1,5 @@
+string[] action_types
+string[] topics
+float32[] duration_ms
+---
+string error

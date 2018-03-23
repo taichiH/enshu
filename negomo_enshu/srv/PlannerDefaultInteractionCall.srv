@@ -1,0 +1,5 @@
+bool warn
+negomo/NegomoTask[] tasks
+---
+bool status
+negomo/NegomoTask task

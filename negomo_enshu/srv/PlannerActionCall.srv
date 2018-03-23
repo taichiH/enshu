@@ -1,0 +1,7 @@
+string taskid
+string actionid
+int32 usedhands
+bool backward
+---
+int32 nextid
+int32 usedhands

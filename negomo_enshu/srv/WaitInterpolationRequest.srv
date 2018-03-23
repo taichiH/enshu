@@ -1,0 +1,16 @@
+int32 target
+float32 check_threshold
+int32 check_options
+bool interact_only_once
+bool enable_preinteraction
+bool warn_avoid
+int32 task_priority
+float32 exec_time_ms
+int32 remaining_queue
+int32 preinteractionid
+int32 postinteractionid
+int32 postfalseinteractionid
+int32[] queue
+---
+int32 next
+int32[] queue

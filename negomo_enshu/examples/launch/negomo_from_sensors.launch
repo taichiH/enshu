@@ -1,0 +1,28 @@
+<launch>
+  <arg name="host" default="localhost"/>
+  <arg name="enable_filter" default="false"/>
+  <arg name="project_points" default="false"/>
+
+  <!-- person info detection nodes -->
+
+  <!-- on-robot kinect from windows streaming detected face images -->
+  <include file="$(find roboenvcv)/launch2/person_detection2.launch">
+    <arg name="enable_filter" value="$(arg enable_filter)"/>
+  </include>
+
+  <!-- engagement detection nodes -->
+
+  <param name="/project_points" value="$(arg project_points)"/>
+  <node name="negomo_sensor" pkg="negomo"
+        type="negomo_sensor" output="screen">
+     <rosparam file="$(find negomo)/config/negomo.yaml"
+               command="load"/>
+     <remap from="/tf_msg/robot" to="/tf_msg/base_frame"/>
+  </node>
+
+  <node name="negomo" pkg="negomo"
+        type="negotiation_model" output="screen">
+     <rosparam file="$(find negomo)/config/negomo.yaml"
+               command="load"/>
+  </node>
+</launch>

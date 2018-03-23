@@ -1,0 +1,4 @@
+string action
+int32 target_id
+---
+float32 time_ms
