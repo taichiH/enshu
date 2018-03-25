@@ -5,7 +5,7 @@ from matplotlib import gridspec
 from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
 import numpy as np
 import rospy
-from negomo.msg import *
+from negomo_enshu.msg import *
 from std_msgs.msg import *
 from threading import Lock
 from datetime import datetime

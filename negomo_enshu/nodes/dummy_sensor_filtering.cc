@@ -8,7 +8,7 @@
 #include <ros/subscribe_options.h>
 #include <geometry_msgs/PoseStamped.h>
 #include <geometry_msgs/PoseArray.h>
-#include <negomo/NegomoSensors.h>
+#include <negomo_enshu/NegomoSensors.h>
 #include <roboenvcv/BoolStamped.h>
 #include <visualization_msgs/Marker.h>
 
@@ -56,7 +56,7 @@ void PeoplePositionCallback
 }
 
 void PeopleFaceCallback
-(const negomo::NegomoSensors::ConstPtr &_msg) {
+(const negomo_enshu::NegomoSensors::ConstPtr &_msg) {
   // because current NegomoSensors output does not have timestamp
   // use most latest sensor results
 
@@ -90,7 +90,7 @@ void PeopleFaceCallback
     return;
   }
   v_people_.erase(v_people_.begin(), v_people_.end() - 1);
-  negomo::NegomoSensors msg;
+  negomo_enshu::NegomoSensors msg;
   msg.timestamp = _msg->timestamp;
   msg.data.resize(max_faces_);
   for (size_t i = 0; i < max_faces_; ++i)
@@ -142,7 +142,7 @@ int main(int argc, char **argv) {
   f_ = LocalRadius;
 
   filtered_publisher_ =
-    nh.advertise<negomo::NegomoSensors>("/negomo/sensor/face", 10);
+    nh.advertise<negomo_enshu::NegomoSensors>("/negomo/sensor/face", 10);
   marker_publisher_ =
     nh.advertise<visualization_msgs::Marker>("sensor_filter", 1);
 
@@ -160,7 +160,7 @@ int main(int argc, char **argv) {
 
   ros::CallbackQueue sensorresult_queue;
   ros::SubscribeOptions sensorresult_ops =
-    ros::SubscribeOptions::create<negomo::NegomoSensors>(
+    ros::SubscribeOptions::create<negomo_enshu::NegomoSensors>(
         "/negomo/sensor/face/dummy",
         1,
         boost::bind(&PeopleFaceCallback, _1),

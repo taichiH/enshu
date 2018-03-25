@@ -37,7 +37,7 @@ generate_messages()
 
 catkin_package(
   INCLUDE_DIRS include
-  LIBRARIES negomo_lib negomo_planner_lib negomo_lib2
+  LIBRARIES negomo_enshu_lib negomo_enshu_planner_lib negomo_enshu_lib2
   CATKIN_DEPENDS
   roscpp std_msgs
 )
@@ -55,17 +55,17 @@ include_directories(
   ${catkin_INCLUDE_DIRS}
   ${EIGEN3_INCLUDE_DIR}
 )
-add_library(negomo_lib lib/NegomoLib.cc)
-target_link_libraries(negomo_lib ${catkin_LIBRARIES})
-add_dependencies(negomo_lib negomo_generate_messages_cpp)
+add_library(negomo_enshu_lib lib/NegomoLib.cc)
+target_link_libraries(negomo_enshu_lib ${catkin_LIBRARIES})
+add_dependencies(negomo_enshu_lib negomo_generate_messages_cpp)
 
-add_library(negomo_planner_lib lib/NegomoPlannerLib.cc)
-target_link_libraries(negomo_planner_lib ${catkin_LIBRARIES})
-add_dependencies(negomo_planner_lib negomo_generate_messages_cpp)
+add_library(negomo_enshu_planner_lib lib/NegomoPlannerLib.cc)
+target_link_libraries(negomo_enshu_planner_lib ${catkin_LIBRARIES})
+add_dependencies(negomo_enshu_planner_lib negomo_generate_messages_cpp)
 
-add_library(negomo_lib2 lib/NegomoLib.cc lib/NegomoPlannerLib.cc lib/NegomoLib2.cc)
-target_link_libraries(negomo_lib2 ${catkin_LIBRARIES})
-add_dependencies(negomo_lib2 negomo_generate_messages_cpp)
+add_library(negomo_enshu_lib2 lib/NegomoLib.cc lib/NegomoPlannerLib.cc lib/NegomoLib2.cc)
+target_link_libraries(negomo_enshu_lib2 ${catkin_LIBRARIES})
+add_dependencies(negomo_enshu_lib2 negomo_generate_messages_cpp)
 
 # add node
 add_executable(negomo_bridge nodes/negomo_bridge.cc lib/NegomoLib.cc)

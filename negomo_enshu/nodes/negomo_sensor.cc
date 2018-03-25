@@ -1,6 +1,6 @@
 #include <ros/ros.h>
 #include "roboenvcv/interaction.h"
-#include <negomo/NegomoSensors.h>
+#include <negomo_enshu/NegomoSensors.h>
 #include <roboenvcv/PersonCoordinate.h>
 #include <visualization_msgs/Marker.h>
 #include <geometry_msgs/PoseArray.h>
@@ -112,7 +112,7 @@ void LogTimer(const ros::TimerEvent& _event) {
   int timeout_counter = 0;
   int logging_check = 0; // for logging
 
-  negomo::NegomoSensors msg;
+  negomo_enshu::NegomoSensors msg;
   msg.timestamp = ros::Time::now();
   msg.data.resize(max_faces_);
   auto m_i = msg.data.begin();
@@ -185,7 +185,7 @@ void PersonCoordinateWithIDCallback
 
   // ROS_INFO("stat: %s", _msg->id.c_str());
 
-  negomo::NegomoSensors msg;
+  negomo_enshu::NegomoSensors msg;
   msg.timestamp = ros::Time::now();
   msg.data.resize(max_faces_);
   geometry_msgs::PoseArray msg_p;
@@ -296,7 +296,7 @@ int main(int argc, char **argv) {
   marker_publisher_ =
     nh.advertise<visualization_msgs::Marker>("visualization_marker", 1);
   face_status_publisher_ =
-    nh.advertise<negomo::NegomoSensors>("/negomo/sensor/face", 10);
+    nh.advertise<negomo_enshu::NegomoSensors>("/negomo/sensor/face", 10);
   // when user is lost, values will stream (0, 0, 0) for notification
   face_global_pos_publisher_ =
     nh.advertise<geometry_msgs::PoseArray>("/negomo/sensor/face/position/global", 10);

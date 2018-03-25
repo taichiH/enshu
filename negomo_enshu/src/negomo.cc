@@ -57,11 +57,11 @@ Negomo::Negomo(ros::NodeHandle _nh, int _rate, parameters _params)
 
   // init ros related members
   this->state_publisher =
-    nh.advertise<negomo::NegomoStatus>("flag", 10);
+    nh.advertise<negomo_enshu::NegomoStatus>("flag", 10);
   this->state_server =
     nh.advertiseService("call", &Negomo::TaskPlannerBridge, this);
   this->robot_client =
-    nh.serviceClient<negomo::RobotAction>("do_action");
+    nh.serviceClient<negomo_enshu::RobotAction>("do_action");
   this->state_intermediate_server =
     nh.advertiseService("intermediate/call",
                         &Negomo::TaskPlannerIntermediateBridge, this);
@@ -78,7 +78,7 @@ Negomo::Negomo(ros::NodeHandle _nh, int _rate, parameters _params)
     nh.subscribe("done_action", 10, &Negomo::DoneActionCallback, this);
 
   this->plot_publisher =
-    nh.advertise<negomo::NegomoPlot>("plot", 100);
+    nh.advertise<negomo_enshu::NegomoPlot>("plot", 100);
 
   this->print_publisher =
     nh.advertise<std_msgs::String>("observation_sequence", 100);
@@ -115,7 +115,7 @@ Negomo::~Negomo()
 }
 
 //////////////////////////////////////////////////
-void Negomo::ImageCallback(const negomo::NegomoSensors::ConstPtr& _str)
+void Negomo::ImageCallback(const negomo_enshu::NegomoSensors::ConstPtr& _str)
 {
   // ImageCallback may be called in Run or PlannerBridge
   this->image_buffer_lock.lock();
@@ -482,7 +482,7 @@ labelled_action Negomo::DecideAction(
 
 //////////////////////////////////////////////////
 bool Negomo::TaskPlannerIntermediateBridge(
-    NegomoService::Request &_req, NegomoService::Response &_res)
+    negomo_enshu::NegomoService::Request &_req, negomo_enshu::NegomoService::Response &_res)
 {
   ROS_WARN("Called TaskPlannerIntermediateBridge");
 
@@ -534,7 +534,7 @@ bool Negomo::TaskPlannerIntermediateBridge(
 
 //////////////////////////////////////////////////
 bool Negomo::TaskPlannerBridge(
-    NegomoService::Request &_req, NegomoService::Response &_res)
+    negomo_enshu::NegomoService::Request &_req, negomo_enshu::NegomoService::Response &_res)
 {
   vpFlow("call");
   ROS_WARN("Called TaskPlannerBridge %s", _req.context.c_str());
@@ -813,7 +813,7 @@ int Negomo::ObserveFrom(seqitr _it)
   labelled_action _action = _it->action; // due to fix from old code
 
   // send action to robot
-  RobotAction act;
+  negomo_enshu::RobotAction act;
   act.request.action = _action.name;
   act.request.target_id = this->getNegotiationTarget();
 
@@ -966,7 +966,7 @@ void Negomo::UpdateStatSendTaskPlanner(bool _status, labelled_action _action)
 
 //////////////////////////////////////////////////
 bool Negomo::ForceDuring(
-    NegomoService::Request &_req, NegomoService::Response &_res)
+    negomo_enshu::NegomoService::Request &_req, negomo_enshu::NegomoService::Response &_res)
 {
   ROS_WARN("Called ForceDuring");
 
@@ -1155,7 +1155,7 @@ void Negomo::PlotScores(seqitr _it, weighted_state _state)
   _it->timeline.push_back({time_now, _state});
 
   // create msg
-  negomo::NegomoPlot msg;
+  negomo_enshu::NegomoPlot msg;
   msg.target = static_cast<int>(_it - this->target_buffers.begin());
   for (auto log = _it->timeline.begin(); log != _it->timeline.end(); ++log) {
     if (log->second.name == "p") {

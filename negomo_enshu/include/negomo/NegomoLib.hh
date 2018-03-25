@@ -11,15 +11,15 @@
 #include <std_srvs/SetBool.h>
 #include <std_msgs/String.h>
 #include <geometry_msgs/PoseArray.h>
-#include <negomo/NegomoStatus.h>
-#include <negomo/NegomoPlot.h>
-#include <negomo/NegomoService.h>
-#include <negomo/RobotAction.h>
-#include <negomo/BridgeRequest.h>
-#include <negomo/PartialResultRequest.h>
-#include <negomo/RegisterActions.h>
-#include <negomo/WaitInterpolationRequest.h>
-#include <negomo/PlannerInteractionCall.h>
+#include <negomo_enshu/NegomoStatus.h>
+#include <negomo_enshu/NegomoPlot.h>
+#include <negomo_enshu/NegomoService.h>
+#include <negomo_enshu/RobotAction.h>
+#include <negomo_enshu/BridgeRequest.h>
+#include <negomo_enshu/PartialResultRequest.h>
+#include <negomo_enshu/RegisterActions.h>
+#include <negomo_enshu/WaitInterpolationRequest.h>
+#include <negomo_enshu/PlannerInteractionCall.h>
 #include <string>
 #include <vector>
 #include <map>
@@ -44,7 +44,7 @@ namespace negomo_lib
   //    1: Task may be proceeded.
   //   -4: Fatal error.
   //   Call to state-return required if status_change = 1.
-  public: negomo::BridgeRequest::Response breakfrom
+  public: negomo_enshu::BridgeRequest::Response breakfrom
   (std::string _target="", std::string _method="identical");
 
   // @brief Breakpoint call on whether to finish current interaction.
@@ -122,21 +122,21 @@ namespace negomo_lib
   //    1: Human interested in robot.
   //    0: Human not interested in robot.
   //   -1: Human reacted to robot.
-  public: bool check(negomo::PartialResultRequest::Response &_res,
+  public: bool check(negomo_enshu::PartialResultRequest::Response &_res,
                      float _threshold=0.3, int _target=-1, int _options=0);
 
   // @brief Status subcriber callback.
-  private: void StatusCallback(const negomo::NegomoStatus::ConstPtr status);
+  private: void StatusCallback(const negomo_enshu::NegomoStatus::ConstPtr status);
 
   // @brief Partial result subscriber callback.
-  private: void PartialResultCallback(const negomo::NegomoPlot::ConstPtr _msg);
+  private: void PartialResultCallback(const negomo_enshu::NegomoPlot::ConstPtr _msg);
 
   // @brief Status subcriber callback.
   private: void SetDuringActionCallback(const std_msgs::String::ConstPtr _msg);
 
   // @brief Pre-interaction action subscriber callback.
-  private: bool ActionCallback(negomo::RobotAction::Request &req,
-                               negomo::RobotAction::Response &res);
+  private: bool ActionCallback(negomo_enshu::RobotAction::Request &req,
+                               negomo_enshu::RobotAction::Response &res);
 
   public: ros::ServiceClient do_action_;
 
@@ -170,7 +170,7 @@ namespace negomo_lib
 
   private: ros::AsyncSpinner status_spinner_;
 
-  private: negomo::NegomoStatus status_;
+  private: negomo_enshu::NegomoStatus status_;
 
   private: ros::CallbackQueue partial_result_queue_;
 
@@ -228,7 +228,7 @@ namespace negomo_lib
 
   // @brief Add action callback (only used with lib and not node mode).
   // @param[in] _f: Robot pre-interaction action callback function.
-  public: void initlib(const boost::function<bool(negomo::RobotAction::Request &, negomo::RobotAction::Response &)> & _f);
+  public: void initlib(const boost::function<bool(negomo_enshu::RobotAction::Request &, negomo_enshu::RobotAction::Response &)> & _f);
 
   // lib optionals
 

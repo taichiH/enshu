@@ -6,11 +6,11 @@
 #include <ros/console.h>
 #include <std_msgs/String.h>
 #include <std_msgs/Empty.h>
-#include <negomo/NegomoStatus.h>
-#include <negomo/NegomoService.h>
-#include <negomo/RobotAction.h>
-#include <negomo/NegomoSensors.h>
-#include <negomo/NegomoPlot.h>
+#include <negomo_enshu/NegomoStatus.h>
+#include <negomo_enshu/NegomoService.h>
+#include <negomo_enshu/RobotAction.h>
+#include <negomo_enshu/NegomoSensors.h>
+#include <negomo_enshu/NegomoPlot.h>
 #include <chrono>
 #include <thread>
 #include <mutex>
@@ -266,10 +266,10 @@ namespace negomo
 
     // @brief Used to find an end to an interaction.
   private: bool TaskPlannerIntermediateBridge(
-      NegomoService::Request &_req, NegomoService::Response &_res);
+      negomo_enshu::NegomoService::Request &_req, negomo_enshu::NegomoService::Response &_res);
 
   private: bool TaskPlannerBridge(
-      NegomoService::Request &_req, NegomoService::Response &_res);
+      negomo_enshu::NegomoService::Request &_req, negomo_enshu::NegomoService::Response &_res);
 
   private: void SpinInObserveFrom(
       seqitr _it, std::string _action, timed_sequence &_timer);
@@ -286,7 +286,7 @@ namespace negomo
 
     // @brief Forces in_during phase on target. e.g. Voice trigger.
   private: bool ForceDuring(
-      NegomoService::Request &_req, NegomoService::Response &_res);
+      negomo_enshu::NegomoService::Request &_req, negomo_enshu::NegomoService::Response &_res);
 
   private: bool Timeout(seqitr _it);
 
@@ -361,7 +361,7 @@ namespace negomo
 
   private: seqitr negotiation_target;
 
-  private: negomo::NegomoSensors image_buffer;
+  private: negomo_enshu::NegomoSensors image_buffer;
     
   private: bool run_lock;
 
@@ -375,7 +375,7 @@ namespace negomo
 
   private: label::map level;
     
-  private: NegomoStatus msg;
+  private: negomo_enshu::NegomoStatus msg;
 
   private: bool in_preparing;
 
@@ -396,7 +396,7 @@ namespace negomo
     // sensors >
 
   private: void ImageCallback(
-      const negomo::NegomoSensors::ConstPtr& _str);
+      const negomo_enshu::NegomoSensors::ConstPtr& _str);
 
     // @brief Syncs callback data in asynchronous runs.
   private: void AsyncOnce();

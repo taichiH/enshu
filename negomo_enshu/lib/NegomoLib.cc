@@ -22,18 +22,18 @@ NegomoBridge::NegomoBridge
   ns_ = _ns;
 
   do_action_ =
-    nh_.serviceClient<negomo::RobotAction>("/negomo/preinteraction");
+    nh_.serviceClient<negomo_enshu::RobotAction>("/negomo/preinteraction");
 
-  negomo_bridge_ = nh_.serviceClient<negomo::NegomoService>(ns_ + "call");
+  negomo_bridge_ = nh_.serviceClient<negomo_enshu::NegomoService>(ns_ + "call");
   negomo_intermediate_bridge_ =
-    nh_.serviceClient<negomo::NegomoService>(ns_ + "intermediate/call");
+    nh_.serviceClient<negomo_enshu::NegomoService>(ns_ + "intermediate/call");
   negomo_action_finished_ =
     nh_.advertise<std_msgs::Empty>(ns_ + "done_action", 1);
   force_client_ =
-    nh_.serviceClient<negomo::NegomoService>(ns_ + "force/during");
+    nh_.serviceClient<negomo_enshu::NegomoService>(ns_ + "force/during");
 
   ros::AdvertiseServiceOptions action_ops =
-    ros::AdvertiseServiceOptions::create<negomo::RobotAction>(
+    ros::AdvertiseServiceOptions::create<negomo_enshu::RobotAction>(
         ns_ + "do_action",
         boost::bind(&NegomoBridge::ActionCallback, this, _1, _2),
         ros::VoidPtr(),
@@ -45,7 +45,7 @@ NegomoBridge::NegomoBridge
   status_.negotiating = false;
   status_.state = "perceptual";
   ros::SubscribeOptions status_ops =
-    ros::SubscribeOptions::create<negomo::NegomoStatus>(
+    ros::SubscribeOptions::create<negomo_enshu::NegomoStatus>(
         ns_ + "flag",
         10,
         boost::bind(&NegomoBridge::StatusCallback, this, _1),
@@ -56,7 +56,7 @@ NegomoBridge::NegomoBridge
   status_spinner_.start();
 
   ros::SubscribeOptions partial_result_ops =
-    ros::SubscribeOptions::create<negomo::NegomoPlot>(
+    ros::SubscribeOptions::create<negomo_enshu::NegomoPlot>(
         ns_ + "plot",
         10,
         boost::bind(&NegomoBridge::PartialResultCallback, this, _1),
@@ -93,10 +93,10 @@ NegomoBridge::~NegomoBridge()
 }
 
 //////////////////////////////////////////////////
-negomo::BridgeRequest::Response NegomoBridge::breakfrom
+negomo_enshu::BridgeRequest::Response NegomoBridge::breakfrom
 (std::string _target, std::string _method)
 {
-  negomo::BridgeRequest::Response res;
+  negomo_enshu::BridgeRequest::Response res;
   bool flush_interaction = false; // const variable
 
   // Set default parameters.
@@ -104,7 +104,7 @@ negomo::BridgeRequest::Response NegomoBridge::breakfrom
     _target = "anonymous_score"; // select anonymous target by score
 
   // Bridge to negomo situation engine.
-  negomo::NegomoService srv;
+  negomo_enshu::NegomoService srv;
   srv.request.timestamp = ros::Time::now();
   srv.request.context = "continue task?";
   srv.request.target = _target;
@@ -182,7 +182,7 @@ int NegomoBridge::peek(std::string _action)
   // Target must be current target under interaction.
 
   // Bridge to negomo situation engine.
-  negomo::NegomoService srv;
+  negomo_enshu::NegomoService srv;
   srv.request.timestamp = ros::Time::now();
   // must pass action type
   srv.request.function = _action;
@@ -241,7 +241,7 @@ void NegomoBridge::PeekInOut(bool _flag)
 //////////////////////////////////////////////////
 int NegomoBridge::force()
 {
-  negomo::NegomoService srv;
+  negomo_enshu::NegomoService srv;
   srv.request.timestamp = ros::Time::now();
   if (!force_client_.call(srv)) {
     ROS_ERROR("[force] Fatal! Call to negomo has failed!");
@@ -268,7 +268,7 @@ int NegomoBridge::away()
     peekout();
 
   // Bridge to negomo situation engine and force-end during interaction.
-  negomo::NegomoService srv;
+  negomo_enshu::NegomoService srv;
   srv.request.timestamp = ros::Time::now();
   srv.request.flush_interaction = true;
   if (!negomo_intermediate_bridge_.call(srv)) {
@@ -289,7 +289,7 @@ std::string NegomoBridge::prepare
   if (_target == "")
     _target = "anonymous";
 
-  negomo::NegomoService srv;
+  negomo_enshu::NegomoService srv;
   srv.request.timestamp = ros::Time::now();
   srv.request.context = "prepare interaction?";
   srv.request.target = _target;
@@ -319,7 +319,7 @@ int NegomoBridge::tryto(std::string _target, std::string _method)
     _target = "anonymous"; // select anonymous target
 
   // Bridge to negomo situation engine.
-  negomo::NegomoService srv;
+  negomo_enshu::NegomoService srv;
   srv.request.timestamp = ros::Time::now();
   srv.request.context = "interaction ok?";
   srv.request.target = _target;
@@ -361,12 +361,12 @@ int NegomoBridge::tryto(std::string _target, std::string _method)
 //////////////////////////////////////////////////
 bool NegomoBridge::check(float _threshold, int _target, int _options)
 {
-  negomo::PartialResultRequest::Response res;
+  negomo_enshu::PartialResultRequest::Response res;
   return check(res, _threshold, _target, _options);
 }
 
 //////////////////////////////////////////////////
-bool NegomoBridge::check(negomo::PartialResultRequest::Response &_res,
+bool NegomoBridge::check(negomo_enshu::PartialResultRequest::Response &_res,
                          float _threshold, int _target, int _options)
 {
   partial_result_mutex_.lock();
@@ -423,7 +423,7 @@ bool NegomoBridge::check(negomo::PartialResultRequest::Response &_res,
 }
 
 //////////////////////////////////////////////////
-void NegomoBridge::StatusCallback(const negomo::NegomoStatus::ConstPtr _status)
+void NegomoBridge::StatusCallback(const negomo_enshu::NegomoStatus::ConstPtr _status)
 {
   status_mutex_.lock();
   status_.negotiating = _status->negotiating;
@@ -432,7 +432,7 @@ void NegomoBridge::StatusCallback(const negomo::NegomoStatus::ConstPtr _status)
 }
 
 //////////////////////////////////////////////////
-void NegomoBridge::PartialResultCallback(const negomo::NegomoPlot::ConstPtr _msg)
+void NegomoBridge::PartialResultCallback(const negomo_enshu::NegomoPlot::ConstPtr _msg)
 {
   partial_result_mutex_.lock();
   if (_msg->timelinep.size() == 0) {
@@ -481,8 +481,8 @@ void NegomoBridge::SetDuringActionCallback(const std_msgs::String::ConstPtr _msg
 }
 
 //////////////////////////////////////////////////
-bool NegomoBridge::ActionCallback(negomo::RobotAction::Request &_req,
-                                  negomo::RobotAction::Response &_res)
+bool NegomoBridge::ActionCallback(negomo_enshu::RobotAction::Request &_req,
+                                  negomo_enshu::RobotAction::Response &_res)
 {
   if (_req.action == "nperceptual0") {
     // _res.time_ms = 0.0;
@@ -507,7 +507,7 @@ bool NegomoBridge::ActionCallback(negomo::RobotAction::Request &_req,
   std::string preinteractionid = std::to_string(preinteractionid_);
   preinteractionid_mutex_.unlock();
 
-  negomo::RobotAction srv;
+  negomo_enshu::RobotAction srv;
   srv.request.target_id = _req.target_id;
   if (preinteractionid == "0")
     srv.request.action = ns_ + action + std::to_string(level);
@@ -515,7 +515,7 @@ bool NegomoBridge::ActionCallback(negomo::RobotAction::Request &_req,
     srv.request.action = ns_ + action + std::to_string(level) + "/task" + preinteractionid;
 
   // run on background, as negomo must handle observations while doing action
-  std::thread th([&](negomo::RobotAction _srv){
+  std::thread th([&](negomo_enshu::RobotAction _srv){
       if (!do_action_.call(_srv))
         ROS_ERROR("[ActionCallback] Failed to call pre-interaction action.");
       std_msgs::Empty msg;
@@ -572,10 +572,10 @@ void NegomoBridge::OptionalHeadPositionCallback
 }
 
 //////////////////////////////////////////////////
-void NegomoBridge::initlib(const boost::function<bool(negomo::RobotAction::Request &, negomo::RobotAction::Response &)> & _f)
+void NegomoBridge::initlib(const boost::function<bool(negomo_enshu::RobotAction::Request &, negomo_enshu::RobotAction::Response &)> & _f)
 {
   ros::AdvertiseServiceOptions ops =
-    ros::AdvertiseServiceOptions::create<negomo::RobotAction>(
+    ros::AdvertiseServiceOptions::create<negomo_enshu::RobotAction>(
         "/negomo/preinteraction",
         _f,
         ros::VoidPtr(),

@@ -4,13 +4,13 @@
 #include <ros/ros.h>
 #include <ros/callback_queue.h>
 #include <ros/subscribe_options.h>
-#include <negomo/WaitInterpolationRequest.h>
-#include <negomo/PlannerInteractionCall.h>
-#include <negomo/PlannerDefaultInteractionCall.h>
-#include <negomo/VpActivate.h>
-#include <negomo/VpConnect.h>
-#include <negomo/PlannerActionCall.h>
-#include <negomo/PlannerBridgeRequest.h> // for option consts
+#include <negomo_enshu/WaitInterpolationRequest.h>
+#include <negomo_enshu/PlannerInteractionCall.h>
+#include <negomo_enshu/PlannerDefaultInteractionCall.h>
+#include <negomo_enshu/VpActivate.h>
+#include <negomo_enshu/VpConnect.h>
+#include <negomo_enshu/PlannerActionCall.h>
+#include <negomo_enshu/PlannerBridgeRequest.h> // for option consts
 #include <std_msgs/Empty.h>
 #include <std_msgs/Int32.h>
 #include <std_msgs/String.h>
@@ -48,7 +48,7 @@ namespace negomo_lib
       enable_preinteraction = true;
       warn_avoid = false;
       exec_time_ms = -1;
-      interaction_flag = negomo::PlannerBridgeRequest::Request::OPENALL;
+      interaction_flag = negomo_enshu::PlannerBridgeRequest::Request::OPENALL;
       at_end = 0;
       backward_allowed = 1;
       max_queue_size = 3;
@@ -117,6 +117,14 @@ namespace negomo_lib
   // @return True if over given number.
   public: inline bool queueOver(int _num) {return (taskq_.size() >= _num);};
 
+  // @brief Spin version of runTask.
+  //     Assumes exception and temp actions to be same for all tasks.
+  // @param[in] _als: List of actions of all tasks.
+  // @param[in] _el: Actions when entered exception. e.g. call person
+  // @param[in] _tl: Actions when entered temp escape. e.g. place object
+  public: void run
+  (std::vector<ActionList> _als, ActionList *_el, ActionList *_tl);
+
   // @brief Task transition handler (runs until main task reaches finish).
   //     Assumes exception and temp actions to be same for all tasks.
   // @param[in] _entid: ID of main task before any interruption.
@@ -152,7 +160,7 @@ namespace negomo_lib
   // @param[in] _srv: Variable to save settings.
   // @return false if iStart should escape due to iOff settings, etc.
   protected: bool iStartSetup
-  (jumpSettings _js, waitSettings _ws, negomo::WaitInterpolationRequest &_srv);
+  (jumpSettings _js, waitSettings _ws, negomo_enshu::WaitInterpolationRequest &_srv);
 
   // @brief Check and start interruption interaction in background.
   //     Function will handle any interrupting interactions.
@@ -257,8 +265,8 @@ namespace negomo_lib
   public: inline std::string newWild() {++wildid_; return std::to_string(wildid_);};
 
   // @brief Default interaction
-  protected: bool shortInteraction(negomo::PlannerInteractionCall::Request &_req,
-                                   negomo::PlannerInteractionCall::Response &_res);
+  protected: bool shortInteraction(negomo_enshu::PlannerInteractionCall::Request &_req,
+                                   negomo_enshu::PlannerInteractionCall::Response &_res);
 
 
 
@@ -372,7 +380,7 @@ namespace negomo_lib
   private: int wildid_;
 
   // @brief Saved task and entity lists.
-  private: negomo::PlannerDefaultInteractionCall intsrv_;
+  private: negomo_enshu::PlannerDefaultInteractionCall intsrv_;
 
   // @brief Used for robot interaction in shortInteraction (default interaction).
   private: ros::ServiceClient planner_interaction_client_;
@@ -535,7 +543,7 @@ namespace negomo_lib
   // @param[in] _at: Current action id. (-1=replan from forward)
   // @param[in] _to: How much forward/backward planned.
   private: inline void vpInterrupt(int _at, int _to) {
-    negomo::VpConnect msg; msg.at = _at; msg.to = curaction_ + _to;
+    negomo_enshu::VpConnect msg; msg.at = _at; msg.to = curaction_ + _to;
     vppub_enterinterruption_.publish(msg); 
     usleep(10 * 1000); // ROS msg may enter in wrong queue order without sleep
   }

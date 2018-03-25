@@ -4,8 +4,8 @@ negomo_lib::NegomoBridgePtr engine_;
 
 // ------------ callbacks ------------
 
-bool Break(negomo::BridgeRequest::Request &_req,
-           negomo::BridgeRequest::Response &_res) {
+bool Break(negomo_enshu::BridgeRequest::Request &_req,
+           negomo_enshu::BridgeRequest::Response &_res) {
   if (_req.method == "")
     _res = engine_->breakfrom(_req.target);
   else
@@ -13,8 +13,8 @@ bool Break(negomo::BridgeRequest::Request &_req,
   return true;
 };
 
-bool Try(negomo::BridgeRequest::Request &_req,
-         negomo::BridgeRequest::Response &_res) {
+bool Try(negomo_enshu::BridgeRequest::Request &_req,
+         negomo_enshu::BridgeRequest::Response &_res) {
   _res.status_change = 1;
   if (_req.method == "")
     _res.proceed = engine_->tryto(_req.target);
@@ -23,8 +23,8 @@ bool Try(negomo::BridgeRequest::Request &_req,
   return true;
 };
 
-bool Prepare(negomo::NegomoService::Request &_req,
-             negomo::NegomoService::Response &_res) {
+bool Prepare(negomo_enshu::NegomoService::Request &_req,
+             negomo_enshu::NegomoService::Response &_res) {
   bool start_negotiation = (_req.function == "" ? false : true);
   std::string method = (_req.method == "" ? "identical" : _req.method);
   // result is interacting person id
@@ -32,8 +32,8 @@ bool Prepare(negomo::NegomoService::Request &_req,
   return true;
 };
 
-bool Peek(negomo::BridgeRequest::Request &_req,
-          negomo::BridgeRequest::Response &_res) {
+bool Peek(negomo_enshu::BridgeRequest::Request &_req,
+          negomo_enshu::BridgeRequest::Response &_res) {
   if (_req.function == "") {
     ROS_ERROR("Failed Peek()! Please set 'proactive' or 'reactive' in function!");
     return true;
@@ -42,8 +42,8 @@ bool Peek(negomo::BridgeRequest::Request &_req,
   return true;
 };
 
-bool PeekAuto(negomo::BridgeRequest::Request &_req,
-              negomo::BridgeRequest::Response &_res) {
+bool PeekAuto(negomo_enshu::BridgeRequest::Request &_req,
+              negomo_enshu::BridgeRequest::Response &_res) {
   _res.proceed = static_cast<int>(engine_->peek());
   return true;
 };
@@ -57,20 +57,20 @@ bool PeekInOut(std_srvs::SetBool::Request &_req,
   return true;
 };
 
-bool Check(negomo::PartialResultRequest::Request &_req,
-           negomo::PartialResultRequest::Response &_res) {
+bool Check(negomo_enshu::PartialResultRequest::Request &_req,
+           negomo_enshu::PartialResultRequest::Response &_res) {
   engine_->check(_res, _req.threshold, _req.target, _req.options);
   return true;
 };
 
-bool Force(negomo::BridgeRequest::Request &_req,
-          negomo::BridgeRequest::Response &_res) {
+bool Force(negomo_enshu::BridgeRequest::Request &_req,
+          negomo_enshu::BridgeRequest::Response &_res) {
   _res.proceed = engine_->force();
   return true;
 };
 
-bool Away(negomo::BridgeRequest::Request &_req,
-          negomo::BridgeRequest::Response &_res) {
+bool Away(negomo_enshu::BridgeRequest::Request &_req,
+          negomo_enshu::BridgeRequest::Response &_res) {
   _res.proceed = engine_->away();
   return true;
 };

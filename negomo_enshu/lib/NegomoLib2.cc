@@ -26,7 +26,7 @@ void NegomoBridge2::iStart(jumpSettings _js, waitSettings _ws)
     return;
   }
 
-  negomo::WaitInterpolationRequest srv;
+  negomo_enshu::WaitInterpolationRequest srv;
   if (!iStartSetup(_js, _ws, srv))
     return;
 
@@ -40,7 +40,7 @@ void NegomoBridge2::iStart(jumpSettings _js, waitSettings _ws)
   results_.queue.clear();
   results_mutex_.unlock();
   // start interaction in background
-  std::thread th = std::thread([&](negomo::WaitInterpolationRequest::Request _req)
+  std::thread th = std::thread([&](negomo_enshu::WaitInterpolationRequest::Request _req)
                                {InteractiveWaitInterpolation(_req);},
                                srv.request);
   th.detach();
@@ -59,7 +59,7 @@ int NegomoBridge2::getWaitInterpolation()
     return -1;
   }
 
-  negomo::WaitInterpolationRequest srv;
+  negomo_enshu::WaitInterpolationRequest srv;
 
   // end actions
   taskinaction_mutex_.lock();
@@ -102,7 +102,7 @@ int NegomoBridge2::getWaitInterpolation()
 
 //////////////////////////////////////////////////
 void NegomoBridge2::InteractiveWaitInterpolation
-(negomo::WaitInterpolationRequest::Request _req)
+(negomo_enshu::WaitInterpolationRequest::Request _req)
 {
   // assumes taskinaction_ flag false when all actions are done
   // all actions include additional actions within InteractiveWI
@@ -191,7 +191,7 @@ void NegomoBridge2::InteractiveWaitInterpolation
             > 5000) { // time elapsed
           vpWI("check -> warn");
           // trigger occupied action
-          negomo::PlannerInteractionCall intsrv;
+          negomo_enshu::PlannerInteractionCall intsrv;
           intsrv.request.proceed = false;
           if (!shortInteraction(intsrv.request, intsrv.response)) {
             ROS_ERROR("[InteractiveWI] Failed to call interaction callback!");
@@ -235,7 +235,7 @@ void NegomoBridge2::InteractiveWaitInterpolation
 void NegomoBridge2::ResetInInteractiveWI(int _resetid)
 {
   // reset action
-  negomo::RobotAction srv;
+  negomo_enshu::RobotAction srv;
   if (_resetid == 0)
     srv.request.action = "/negomo/reset";
   else
@@ -246,7 +246,7 @@ void NegomoBridge2::ResetInInteractiveWI(int _resetid)
 
 //////////////////////////////////////////////////
 bool NegomoBridge2::InteractInInteractiveWI
-(negomo::WaitInterpolationRequest::Request &_req)
+(negomo_enshu::WaitInterpolationRequest::Request &_req)
 {
   vpWI("during");
 
@@ -254,7 +254,7 @@ bool NegomoBridge2::InteractInInteractiveWI
   peekin();
 
   // the interaction
-  negomo::PlannerInteractionCall intsrv;
+  negomo_enshu::PlannerInteractionCall intsrv;
   intsrv.request.proceed = true;
   if (!shortInteraction(intsrv.request, intsrv.response)) {
     ROS_WARN("[InteractiveWI] Failed to call interaction callback!");

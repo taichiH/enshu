@@ -8,19 +8,19 @@ NegomoPlanner::NegomoPlanner
   : nh_(_nh), uispinner_(1, &uiqueue_), defint_spinner_(1, &defint_queue_)
 {
   waitinterpolation_client_ =
-    nh_.serviceClient<negomo::WaitInterpolationRequest>(_ns + "interactivewi/begin");
+    nh_.serviceClient<negomo_enshu::WaitInterpolationRequest>(_ns + "interactivewi/begin");
 
   waitinterpolation_result_client_ =
-    nh_.serviceClient<negomo::WaitInterpolationRequest>(_ns + "interactivewi/result");
+    nh_.serviceClient<negomo_enshu::WaitInterpolationRequest>(_ns + "interactivewi/result");
 
   planner_interaction_client_ =
-    nh_.serviceClient<negomo::PlannerDefaultInteractionCall>(_ns + "interactivewi/defaultinteraction");
+    nh_.serviceClient<negomo_enshu::PlannerDefaultInteractionCall>(_ns + "interactivewi/defaultinteraction");
 
   vppub_cleanall_ =
     nh_.advertise<std_msgs::Empty>(_ns + "vp/cleanall", 10);
 
   vppub_activate_ =
-    nh_.advertise<negomo::VpActivate>(_ns + "vp/activate", 10);
+    nh_.advertise<negomo_enshu::VpActivate>(_ns + "vp/activate", 10);
 
   vppub_addtoqueue_ =
     nh_.advertise<std_msgs::Int32>(_ns + "vp/addToQueue", 10);
@@ -35,7 +35,7 @@ NegomoPlanner::NegomoPlanner
     nh_.advertise<std_msgs::Int32>(_ns + "vp/toQueue", 10);
 
   vppub_enterinterruption_ =
-    nh_.advertise<negomo::VpConnect>(_ns + "vp/enterInterruption", 10);
+    nh_.advertise<negomo_enshu::VpConnect>(_ns + "vp/enterInterruption", 10);
 
   vppub_enterexception_ =
     nh_.advertise<std_msgs::Empty>(_ns + "vp/enterException", 10);
@@ -75,7 +75,7 @@ NegomoPlanner::NegomoPlanner
 
   if (_use_default) {
     ros::AdvertiseServiceOptions interactops =
-      ros::AdvertiseServiceOptions::create<negomo::PlannerInteractionCall>(
+      ros::AdvertiseServiceOptions::create<negomo_enshu::PlannerInteractionCall>(
           _ns + "interactivewi/interact",
           boost::bind(&NegomoPlanner::shortInteraction, this, _1, _2),
           ros::VoidPtr(),
@@ -122,13 +122,13 @@ NegomoPlanner::NegomoPlanner
   // for node version
 
   callaction_client_ =
-    nh_.serviceClient<negomo::PlannerActionCall>(_ns + "planner/callaction");
+    nh_.serviceClient<negomo_enshu::PlannerActionCall>(_ns + "planner/callaction");
 
   callexception_client_ =
-    nh_.serviceClient<negomo::PlannerActionCall>(_ns + "planner/callexception");
+    nh_.serviceClient<negomo_enshu::PlannerActionCall>(_ns + "planner/callexception");
 
   calltemp_client_ =
-    nh_.serviceClient<negomo::PlannerActionCall>(_ns + "planner/calltemp");
+    nh_.serviceClient<negomo_enshu::PlannerActionCall>(_ns + "planner/calltemp");
 
   callAction =
     std::bind(&negomo_lib::NegomoPlanner::callAction_, this,
@@ -197,6 +197,18 @@ void NegomoPlanner::iOnTimered(int _ms)
 }
 
 //////////////////////////////////////////////////
+void NegomoPlanner::run(std::vector<negomo_lib::ActionList> _als, ActionList *_el, ActionList *_tl)
+{
+  while (ros::ok()) {
+    int task, from=0;
+    if (getTaskFromQueue(task, from))
+      runTask(task, _als, _el, _tl, from);
+    else
+      break;
+  }
+}
+
+//////////////////////////////////////////////////
 void NegomoPlanner::runTask
 (int _entid, std::vector<negomo_lib::ActionList> _als, ActionList *_el, ActionList *_tl, int _from)
 {
@@ -223,7 +235,7 @@ int NegomoPlanner::runTask
 (int _entid, ActionList* _al, ActionList* _el, ActionList* _tl, int _from)
 {
   // setup for vp debug
-  negomo::VpActivate vpmsg;
+  negomo_enshu::VpActivate vpmsg;
   vpmsg.entityid = _entid;
   for (auto a = _al->begin(); a != _al->end(); ++a)
     vpmsg.actions.push_back(std::get<4>(*a));
@@ -408,7 +420,7 @@ bool NegomoPlanner::getTaskFromQueue(int &_task, int &_from)
 
 //////////////////////////////////////////////////
 bool NegomoPlanner::iStartSetup
-(jumpSettings _js, waitSettings _ws, negomo::WaitInterpolationRequest &_srv)
+(jumpSettings _js, waitSettings _ws, negomo_enshu::WaitInterpolationRequest &_srv)
 {
   ROS_WARN("called iStart action: %d, flag %d", curaction_, _ws.interaction_flag);
 
@@ -453,9 +465,9 @@ bool NegomoPlanner::iStartSetup
 
   // check interaction flag
   bool hand_occupied = false;
-  if (_ws.interaction_flag == negomo::PlannerBridgeRequest::Request::IGNORE)
+  if (_ws.interaction_flag == negomo_enshu::PlannerBridgeRequest::Request::IGNORE)
     iJoinset_ignore_used_hands_ = true;
-  else if (_ws.interaction_flag == negomo::PlannerBridgeRequest::Request::OPENONE)
+  else if (_ws.interaction_flag == negomo_enshu::PlannerBridgeRequest::Request::OPENONE)
     for (size_t i = 0; i < actionlist_->size() - curaction_; ++i) {
       auto a = actionlist_->begin() + curaction_ + i;
       // TODO: right should be "max_hands - 1", current assumes dual arm
@@ -485,7 +497,7 @@ bool NegomoPlanner::iStartSetup
 //////////////////////////////////////////////////
 void NegomoPlanner::iStart(jumpSettings _js, waitSettings _ws)
 {
-  negomo::WaitInterpolationRequest srv;
+  negomo_enshu::WaitInterpolationRequest srv;
   if (!iStartSetup(_js, _ws, srv))
     return;
 
@@ -793,7 +805,7 @@ int NegomoPlanner::getWaitInterpolation()
     return -1; // continue current
   }
 
-  negomo::WaitInterpolationRequest srv;
+  negomo_enshu::WaitInterpolationRequest srv;
   if (!waitinterpolation_result_client_.call(srv)) {
     ROS_ERROR("failing get as call error to wait interpolation result!");
     return -1; // continue current
@@ -901,7 +913,7 @@ void NegomoPlanner::init(std::vector<std::vector<std::string> > _entities)
   exception_escaped_id_ = -1;
   created_tmpentity_ = -1;
   for (auto t = _entities.begin(); t != _entities.end(); ++t) {
-    negomo::NegomoTask msg; // for default interaction
+    negomo_enshu::NegomoTask msg; // for default interaction
     std::vector<std::pair<std::string, std::string> > entities;
     int i = 0;
     // create task names
@@ -970,8 +982,8 @@ std::string NegomoPlanner::waitUserInput(std::string _type)
 
 //////////////////////////////////////////////////
 bool NegomoPlanner::shortInteraction
-(negomo::PlannerInteractionCall::Request &_req,
- negomo::PlannerInteractionCall::Response &_res)
+(negomo_enshu::PlannerInteractionCall::Request &_req,
+ negomo_enshu::PlannerInteractionCall::Response &_res)
 {
   if (capability_names_.size() != num_capabilities_) {
     ROS_ERROR("Illegal shortInteraction()! Please call init() at setup!");
@@ -980,7 +992,7 @@ bool NegomoPlanner::shortInteraction
   }
 
   if (!_req.proceed) { // notify robot is currently occupied
-    negomo::PlannerDefaultInteractionCall srv;
+    negomo_enshu::PlannerDefaultInteractionCall srv;
     srv.request.warn = true;
     planner_interaction_client_.call(srv);
     _res.nonext = true;
@@ -1137,7 +1149,7 @@ int NegomoPlanner::callActionF
 (int _a, int &_b, bool _backward, ros::ServiceClient *_client, int *_action,
 std::vector<std::pair<std::string, std::vector<std::string>> > *_id2str)
 {
-  negomo::PlannerActionCall srv;
+  negomo_enshu::PlannerActionCall srv;
   int taskid = getEntities().get<int>("taskid");
   srv.request.taskid = _id2str->at(taskid).first;
   srv.request.actionid = _id2str->at(taskid).second.at(*_action);
@@ -1157,7 +1169,7 @@ std::vector<std::pair<std::string, std::vector<std::string>> > *_id2str)
 //////////////////////////////////////////////////
 int NegomoPlanner::callMoveTo_(int _a, int &_b)
 {
-  negomo::PlannerActionCall srv;
+  negomo_enshu::PlannerActionCall srv;
   int taskid = getEntities().get<int>("taskid");
   srv.request.taskid = id2str_.at(taskid).first;
   srv.request.actionid = "moveToWorkspace";

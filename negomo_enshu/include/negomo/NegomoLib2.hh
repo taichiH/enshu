@@ -24,7 +24,7 @@ namespace negomo_lib
 
   // @brief The threaded interaction.
   private: void InteractiveWaitInterpolation
-  (negomo::WaitInterpolationRequest::Request _req);
+  (negomo_enshu::WaitInterpolationRequest::Request _req);
 
   // @brief Reset interaction actions in interactiveWaitInterpolation.
   // @param[in] _resetid: ID of reset funtion, calls "reset/task{_resetid}".
@@ -32,7 +32,7 @@ namespace negomo_lib
 
   // @brief During interaction in interactiveWaitInterpolation.
   private: bool InteractInInteractiveWI
-  (negomo::WaitInterpolationRequest::Request &_req);
+  (negomo_enshu::WaitInterpolationRequest::Request &_req);
 
   private: bool taskinaction_;
 
@@ -42,7 +42,7 @@ namespace negomo_lib
 
   private: bool wi_finished_;
 
-  private: negomo::WaitInterpolationRequest::Response results_;
+  private: negomo_enshu::WaitInterpolationRequest::Response results_;
 
   // private: ros::ServiceClient wi_interaction_client_;
 

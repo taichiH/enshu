@@ -4,8 +4,8 @@ import cv2
 import rospy
 import numpy as np
 from std_msgs.msg import Int32, String, Empty
-from negomo.msg import VpActivate, VpConnect
-from negomo.srv import PlannerDefaultInteractionCall
+from negomo_enshu.msg import VpActivate, VpConnect
+from negomo_enshu.srv import PlannerDefaultInteractionCall
 from threading import Lock
 from sensor_msgs.msg import Image
 from cv_bridge import CvBridge, CvBridgeError
