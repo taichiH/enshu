@@ -1,0 +1,33 @@
+<?xml version="1.0"?>
+<package>
+  <name>aero_enshu</name>
+  <version>0.0.0</version>
+  <description>The aero_enshu package</description>
+
+  <maintainer email="ssb@todo.todo">ssb</maintainer>
+
+  <license>TODO</license>
+  <buildtool_depend>catkin</buildtool_depend>
+  <build_depend>roscpp</build_depend>
+  <build_depend>roslib</build_depend>
+  <build_depend>std_msgs</build_depend>
+  <build_depend>sensor_msgs</build_depend>
+  <build_depend>geometry_msgs</build_depend>
+  <build_depend>tf</build_depend>
+  <build_depend>aero_salesperson2017</build_depend>
+  <build_depend>negomo_enshu</build_depend>
+  <build_depend>aero_std_fcsc</build_depend>
+  <build_depend>aero_addon</build_depend>
+
+  <run_depend>roscpp</run_depend>
+  <run_depend>roslib</run_depend>
+  <run_depend>std_msgs</run_depend>
+  <run_depend>sensor_msgs</run_depend>
+  <run_depend>geometry_msgs</run_depend>
+  <run_depend>tf</run_depend>
+  <run_depend>aero_salesperson2017</run_depend>
+  <run_depend>negomo_enshu</run_depend>
+  <run_depend>aero_std_fcsc</run_depend>
+  <run_depend>aero_addon</run_depend>
+
+</package>
