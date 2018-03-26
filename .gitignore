@@ -1,4 +1,4 @@
-CMakeLists.txt
+negomo_enshu/CMakeLists.txt
 *.pyc
 *~
 log

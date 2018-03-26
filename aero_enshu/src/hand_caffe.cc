@@ -6,10 +6,10 @@
 */
 
 #include "negomo/NegomoLib2.hh"
-#include "aero_salesperson/salesperson.hh"
+#include "aero_devel_lib/devel_lib.hh"
 
-aero::interface::AeroMoveitInterfaceFCSCPtr robot_; // controller
-std::shared_ptr<aero::Salesperson> task_; // motion library
+aero::interface::AeroMoveitInterfacePtr robot_; // controller
+aero::DevelLibPtr lib_; // development library
 negomo_lib::NegomoBridge2Ptr planner_; // planner
 std::map<std::string, std::function<void(int)> > pre_;
 
@@ -24,27 +24,26 @@ int error(int _inhands, int &_nexttask) {
 
 // picking action
 int pick(int _inhands, int &_nexttask) {
-  task_->setFCNContainer(); // set recognition model
+  lib_->setFCNModel("container"); // set recognition model
 
   // get position of item
   Eigen::Vector3d pos;
-  bool found = task_->poseAndRecognize("container", "caffelatte", pos, -0.12);
+  bool found = lib_->poseAndRecognize("container", "caffelatte", pos, -0.12);
 
-  // set interaction settings
+  // set interaction settings, don't care about hands
   negomo_lib::waitSettings ws;
   ws.interaction_flag =
-    negomo_enshu::PlannerBridgeRequest::Request::OPENONE;
-  ws.at_end = 1;
-  ws.backward_allowed = 0;
+    negomo_enshu::PlannerBridgeRequest::Request::IGNORE;
+
+  robot_->setTrackingMode(true); // enable background head move
+  robot_->setLookAt(pos, false, true); // look at target
 
   // start interaction on background
-  robot_->setTrackingMode(true); // enable background head move
-  robot_->setLookAt(pos, false, true);
   planner_->iStart(negomo_lib::jumpSettings(), ws);
 
   if (found)
-    found = task_->pickCoffeeFront(pos, 0.93);
-  _inhands = task_->getUsingHandsNum(); // update hand usage
+    found = lib_->pickCoffeeFront(pos, 0.93);
+  _inhands = lib_->getUsingHandsNum(); // update hand usage
 
   if (!found)
     planner_->setError(true, "failed coffee!");
@@ -61,7 +60,6 @@ int pick(int _inhands, int &_nexttask) {
 void proactive0(int _target) {}; // not used in this demo
 void proactive1(int _target) {}; // not used in this demo
 void reactive0(int _target) {
-  // robot_->setNeck(0.0, 0.0, 0.0, true);
   robot_->setLookAt(Eigen::Vector3d(1.0, 0.0, 1.8), false, true, false);
   usleep(2000 * 1000);
 };
@@ -92,10 +90,10 @@ int handover(int _inhands, int &_nexttask) {
   av.at(aero::joint::lifter_x) = 0.0;
   av.at(aero::joint::lifter_z) = 0.0;
   robot_->sendAngleVector
-    (av, task_->calcPathTime(av, 0.5), aero::ikrange::lifter);
+    (av, lib_->calcPathTime(av, 0.5), aero::ikrange::lifter);
   usleep(1000 * 1000); // wait handover finish
   robot_->openHand(aero::arm::rarm);
-  return task_->getUsingHandsNum();
+  return lib_->getUsingHandsNum();
 };
 
 
@@ -106,8 +104,8 @@ int main(int argc, char **argv) {
   ros::NodeHandle nh("~");
 
   // init variables
-  robot_.reset(new aero::interface::AeroMoveitInterfaceFCSC(nh));
-  task_.reset(new aero::Salesperson(nh, robot_));
+  robot_.reset(new aero::interface::AeroMoveitInterface(nh));
+  lib_.reset(new aero::DevelLib(nh, robot_));
   planner_.reset(new negomo_lib::NegomoBridge2(nh, "/negomo/", nullptr));
 
   // add pre-interactions

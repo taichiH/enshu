@@ -4,10 +4,10 @@
 */
 
 #include "negomo/NegomoLib2.hh"
-#include "aero_salesperson/salesperson.hh"
+#include "aero_devel_lib/devel_lib.hh"
 
-aero::interface::AeroMoveitInterfaceFCSCPtr robot_; // controller
-std::shared_ptr<aero::Salesperson> task_; // motion library
+aero::interface::AeroMoveitInterfacePtr robot_; // controller
+aero::DevelLibPtr lib_; // development library
 negomo_lib::NegomoBridge2Ptr planner_; // planner
 
 
@@ -21,21 +21,21 @@ int error(int _inhands, int &_nexttask) {
 
 // picking action
 int pick(int _inhands, int &_nexttask) {
-  task_->setFCNContainer(); // set recognition model
+  lib_->setFCNModel("container"); // set recognition model
 
   // get position of item
   Eigen::Vector3d pos;
-  bool found = task_->poseAndRecognize("container", "caffelatte", pos, -0.12);
+  bool found = lib_->poseAndRecognize("container", "caffelatte", pos, -0.12);
 
   if (found)
-    found = task_->pickCoffeeFront(pos, 0.93);
+    found = lib_->pickCoffeeFront(pos, 0.93);
 
   if (!found) {
     planner_->setBackTrack("failed coffee!");
     _nexttask = -404;
   }
 
-  return task_->getUsingHandsNum();
+  return lib_->getUsingHandsNum();
 };
 
 
@@ -46,8 +46,8 @@ int main(int argc, char **argv) {
   ros::NodeHandle nh("~");
 
   // init variables
-  robot_.reset(new aero::interface::AeroMoveitInterfaceFCSC(nh));
-  task_.reset(new aero::Salesperson(nh, robot_));
+  robot_.reset(new aero::interface::AeroMoveitInterface(nh));
+  lib_.reset(new aero::DevelLib(nh, robot_));
   planner_.reset(new negomo_lib::NegomoBridge2(nh, "/negomo/", nullptr));
 
   // create actions for planner

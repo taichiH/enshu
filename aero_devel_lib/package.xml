@@ -1,12 +1,13 @@
 <?xml version="1.0"?>
 <package>
-  <name>aero_enshu</name>
+  <name>aero_devel_lib</name>
   <version>0.0.0</version>
-  <description>The aero_enshu package</description>
+  <description>aero_devel_lib pkg</description>
 
-  <maintainer email="ssb@todo.todo">ssb</maintainer>
+  <maintainer email="sasabuchi@jsk.imi.i.u-tokyo.ac.jp">Kazuhiro Sasabuchi</maintainer>
 
   <license>TODO</license>
+
   <buildtool_depend>catkin</buildtool_depend>
   <build_depend>roscpp</build_depend>
   <build_depend>roslib</build_depend>
@@ -14,9 +15,12 @@
   <build_depend>sensor_msgs</build_depend>
   <build_depend>geometry_msgs</build_depend>
   <build_depend>tf</build_depend>
-  <build_depend>aero_devel_lib</build_depend>
-  <build_depend>negomo_enshu</build_depend>
+  <build_depend>message_generation</build_depend>
   <build_depend>aero_std</build_depend>
+  <build_depend>aero_startup</build_depend>
+  <build_depend>dynamic_reconfigure</build_depend>
+  <build_depend>aero_recognition_msgs</build_depend>
+  <build_depend>eigen_conversions</build_depend>
 
   <run_depend>roscpp</run_depend>
   <run_depend>roslib</run_depend>
@@ -24,8 +28,11 @@
   <run_depend>sensor_msgs</run_depend>
   <run_depend>geometry_msgs</run_depend>
   <run_depend>tf</run_depend>
-  <run_depend>aero_devel_lib</run_depend>
-  <run_depend>negomo_enshu</run_depend>
+  <run_depend>message_runtime</run_depend>
   <run_depend>aero_std</run_depend>
+  <run_depend>aero_startup</run_depend>
+  <run_depend>dynamic_reconfigure</run_depend>
+  <run_depend>aero_recognition_msgs</run_depend>
+  <run_depend>eigen_conversions</run_depend>
 
 </package>
