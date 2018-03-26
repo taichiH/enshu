@@ -6,7 +6,7 @@
 #include "negomo/NegomoLib2.hh"
 #include "aero_devel_lib/devel_lib.hh"
 
-aero::interface::AeroMoveitInterfacePtr robot_; // controller
+aero::interface::AeroMoveitInterface::Ptr robot_; // controller
 aero::DevelLibPtr lib_; // development library
 negomo_lib::NegomoBridge2Ptr planner_; // planner
 
@@ -14,7 +14,7 @@ negomo_lib::NegomoBridge2Ptr planner_; // planner
 // when entering error
 int error(int _inhands, int &_nexttask) {
   ROS_ERROR("%s", planner_->getBackTrack().c_str());
-  robot_->speakAsync(planner_->getBackTrack());
+  lib_->speakAsync(planner_->getBackTrack());
   return _inhands;
 };
 
@@ -43,7 +43,7 @@ int pick(int _inhands, int &_nexttask) {
 int main(int argc, char **argv) {
   // init ros
   ros::init(argc, argv, "sample");
-  ros::NodeHandle nh("~");
+  ros::NodeHandle nh;
 
   // init variables
   robot_.reset(new aero::interface::AeroMoveitInterface(nh));

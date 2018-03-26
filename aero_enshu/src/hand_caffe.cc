@@ -8,7 +8,7 @@
 #include "negomo/NegomoLib2.hh"
 #include "aero_devel_lib/devel_lib.hh"
 
-aero::interface::AeroMoveitInterfacePtr robot_; // controller
+aero::interface::AeroMoveitInterface::Ptr robot_; // controller
 aero::DevelLibPtr lib_; // development library
 negomo_lib::NegomoBridge2Ptr planner_; // planner
 std::map<std::string, std::function<void(int)> > pre_;
@@ -17,7 +17,7 @@ std::map<std::string, std::function<void(int)> > pre_;
 // when entering error
 int error(int _inhands, int &_nexttask) {
   ROS_ERROR("%s", planner_->getBackTrack().c_str());
-  robot_->speakAsync(planner_->getBackTrack());
+  lib_->speakAsync(planner_->getBackTrack());
   return _inhands;
 };
 
@@ -89,8 +89,8 @@ int handover(int _inhands, int &_nexttask) {
   robot_->setNeck(0.0, 0.0, 0.0);
   av.at(aero::joint::lifter_x) = 0.0;
   av.at(aero::joint::lifter_z) = 0.0;
-  robot_->sendAngleVector
-    (av, lib_->calcPathTime(av, 0.5), aero::ikrange::lifter);
+  robot_->setRobotStateVariables(av);
+  robot_->sendAngleVector(lib_->calcPathTime(av, 0.5), aero::ikrange::lifter);
   usleep(1000 * 1000); // wait handover finish
   robot_->openHand(aero::arm::rarm);
   return lib_->getUsingHandsNum();
@@ -101,7 +101,7 @@ int handover(int _inhands, int &_nexttask) {
 int main(int argc, char **argv) {
   // init ros
   ros::init(argc, argv, "sample");
-  ros::NodeHandle nh("~");
+  ros::NodeHandle nh;
 
   // init variables
   robot_.reset(new aero::interface::AeroMoveitInterface(nh));

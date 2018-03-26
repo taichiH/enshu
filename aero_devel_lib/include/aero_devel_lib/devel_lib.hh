@@ -20,9 +20,13 @@ namespace aero {
   };
 
   class DevelLib {
-  public: explicit DevelLib(ros::NodeHandle _nh, aero::interface::AeroMoveitInterfacePtr _controller, Eigen::Vector3d _cam_pos=Eigen::Vector3d(0.06, 0.04, 0.08), Eigen::Quaterniond _cam_qua=Eigen::Quaterniond(0.5, -0.5, 0.5, -0.5));
+  public: explicit DevelLib(ros::NodeHandle _nh, aero::interface::AeroMoveitInterface::Ptr _controller, Eigen::Vector3d _cam_pos=Eigen::Vector3d(0.06, 0.04, 0.08), Eigen::Quaterniond _cam_qua=Eigen::Quaterniond(0.5, -0.5, 0.5, -0.5));
 
   public: ~DevelLib();
+
+  public: void speak(const std::string &_speech, const float &_wait_sec);
+
+  public: void speakAsync(const std::string &_speech);
 
   public: bool makeTopGrasp(const aero::arm _arm, const Eigen::Vector3d _pos, aero::trajectory& _tra);
 
@@ -68,7 +72,7 @@ namespace aero {
 
   public: Eigen::Quaterniond getRotationQuaternion(std::string _axis, double _radian);
 
-  public: bool fastestTrajectory3(const aero::arm _arm, const std::vector<geometry_msgs::Pose> _poses, const aero::eef _eef, const Eigen::Vector3d _des_pos, aero::trajectory& _tra);
+  public: bool fastestTrajectory3(const aero::arm _arm, const std::vector<aero::Transform> _poses, const aero::eef _eef, const Eigen::Vector3d _des_pos, aero::trajectory& _tra);
 
   public: int calcPathTime(std::map<aero::joint, double> _av_from, std::map<aero::joint, double> _av_to, double _factor=0.5);
 
@@ -94,7 +98,7 @@ namespace aero {
 
   private: ros::NodeHandle nh_;
 
-  private: aero::interface::AeroMoveitInterfacePtr controller_;
+  private: aero::interface::AeroMoveitInterface::Ptr controller_;
 
   private: aero::vision::ObjectFeaturesPtr features_;
 
@@ -107,6 +111,8 @@ namespace aero {
   private: ros::ServiceClient fcn_starter_;
 
   private: ros::Subscriber fcn_sub_;
+
+  private: ros::Publisher speak_pub_;
   };
 
   typedef std::shared_ptr<DevelLib> DevelLibPtr;

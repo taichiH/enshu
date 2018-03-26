@@ -3,21 +3,38 @@
 namespace aero {
 
   //////////////////////////////////////////////////////////
-  DevelLib::DevelLib(ros::NodeHandle _nh, aero::interface::AeroMoveitInterfacePtr _controller, Eigen::Vector3d _cam_pos, Eigen::Quaterniond _cam_qua)
+  DevelLib::DevelLib(ros::NodeHandle _nh, aero::interface::AeroMoveitInterface::Ptr _controller, Eigen::Vector3d _cam_pos, Eigen::Quaterniond _cam_qua)
     : nh_(_nh), controller_(_controller)
   {
-    controller_->setInterpolation(aero::interpolation::i_constant);
     controller_->setRobotStateToCurrentState();
     features_.reset(new aero::vision::ObjectFeatures(nh_, controller_));
     features_->setCameraTransform("head_base_link", _cam_pos, _cam_qua);
     fcn_sub_ = nh_.subscribe("/object_3d_projector/output", 1, &DevelLib::fcnCallback_, this);
     fcn_starter_ = nh_.serviceClient<std_srvs::SetBool>("/object_detector/set_mode");
+    speak_pub_ = nh_.advertise<std_msgs::String>("/windows/voice", 10);
     usleep(1000 * 1000);
   }
 
   //////////////////////////////////////////////////////////
   DevelLib::~DevelLib(){}
 
+  //////////////////////////////////////////////////////////
+  void DevelLib::speak(const std::string &_speech, const float &_wait_sec) {
+    if (_wait_sec > 500) { // obviously too long for a speech
+      ROS_WARN("detected a large speaking time! mistaken seconds as milliseconds?");
+      _wait_sec / 1000.0f; // forcefully change to seconds
+    }
+    speakAsync(_speech);
+    usleep(static_cast<int>(_wait_sec * 1000) * 1000);
+  }
+
+  //////////////////////////////////////////////////////////
+  void DevelLib::speakAsync(const std::string &_speech) {
+    ROS_INFO("speak: %s", _speech.c_str());
+    std_msgs::String msg;
+    msg.data = _speech;
+    speak_pub_.publish(msg);
+  }
 
   //////////////////////////////////////////////////////////
   bool DevelLib::makeTopGrasp(const aero::arm _arm, const Eigen::Vector3d _pos, aero::trajectory& _tra) {
@@ -44,26 +61,21 @@ namespace aero {
       entry_qua = getRotationQuaternion("x", -90.0 * M_PI / 180.0);
     }
 
-    // poses
-    geometry_msgs::Pose end_pose, mid_pose, entry_pose;
-    tf::pointEigenToMsg(_pos + offset + end_diff, end_pose.position);
-    tf::pointEigenToMsg(_pos + offset + mid_diff, mid_pose.position);
-    tf::pointEigenToMsg(_pos + offset + entry_diff, entry_pose.position);
-    tf::quaternionEigenToMsg(end_qua, end_pose.orientation);
-    tf::quaternionEigenToMsg(mid_qua, mid_pose.orientation);
-    tf::quaternionEigenToMsg(entry_qua, entry_pose.orientation);
-
+    aero::Transform end_pose, mid_pose, entry_pose;
+    end_pose = aero::Translation(_pos + offset + end_diff) * end_qua;
+    mid_pose = aero::Translation(_pos + offset + mid_diff) * mid_qua;
+    entry_pose = aero::Translation(_pos + offset + entry_diff) * entry_qua;
     features_->setMarker(entry_pose, 1);
     features_->setMarker(mid_pose, 2);
     features_->setMarker(end_pose, 3);
-    ROS_WARN("entry: x:%f y:%f z:%f", entry_pose.position.x, entry_pose.position.y, entry_pose.position.z);
-    ROS_WARN("mid  : x:%f y:%f z:%f", mid_pose.position.x, mid_pose.position.y, mid_pose.position.z);
-    ROS_WARN("end  : x:%f y:%f z:%f", end_pose.position.x, end_pose.position.y, end_pose.position.z);
+    ROS_WARN("entry: x:%f y:%f z:%f", entry_pose.translation().x(), entry_pose.translation().y(), entry_pose.translation().z());
+    ROS_WARN("mid  : x:%f y:%f z:%f", mid_pose.translation().x(), mid_pose.translation().y(), mid_pose.translation().z());
+    ROS_WARN("end  : x:%f y:%f z:%f", end_pose.translation().x(), end_pose.translation().y(), end_pose.translation().z());
 
     // desired hand position from waist
     Eigen::Vector3d des_pos = {0.6, 0.2, 0.1};
-    if (end_pose.position.x > 0.75)
-      des_pos = {0.6, 0.2, end_pose.position.z - 0.9 + 0.15}; // dirty
+    if (end_pose.translation().x() > 0.75)
+      des_pos = {0.6, 0.2, end_pose.translation().z() - 0.9 + 0.15}; // dirty
     if (_arm == aero::arm::rarm)
       des_pos.y() = -0.2;
 
@@ -143,7 +155,9 @@ namespace aero {
     controller_->getResetManipPose(av);
     controller_->setRobotStateToCurrentState();
     controller_->resetLookAt();
-    controller_->sendAngleVector(av, calcPathTime(av, 0.7, false));
+    controller_->setRobotStateVariables(av);
+    controller_->sendAngleVector(calcPathTime(av, 0.7, false));
+    controller_->waitInterpolation();
 
     double factor = 0.7;
 
@@ -207,7 +221,9 @@ namespace aero {
     av.at(aero::joint::l_shoulder_y) = 0.3;
     controller_->setRobotStateToCurrentState();
     controller_->setNeck(0.0, M_PI/ 2.0 ,0.0);
-    controller_->sendAngleVector(av, calcPathTime(av, 0.8, false),aero::ikrange::lifter);
+    controller_->setRobotStateVariables(av);
+    controller_->sendAngleVector(calcPathTime(av, 0.8, false),aero::ikrange::lifter);
+    controller_->waitInterpolation();
  }
 
   //////////////////////////////////////////////////////////
@@ -222,7 +238,9 @@ namespace aero {
     av.at(aero::joint::lifter_z) = -0.1;
     controller_->setRobotStateToCurrentState();
     controller_->setNeck(0.0,M_PI/2.0,0.0);
-    controller_->sendAngleVector(av, std::max(calcPathTime(av, 0.8, false), 1000),aero::ikrange::lifter);
+    controller_->setRobotStateVariables(av);
+    controller_->sendAngleVector(std::max(calcPathTime(av, 0.8, false), 1000),aero::ikrange::lifter);
+    controller_->waitInterpolation();
  }
 
   //////////////////////////////////////////////////////////
@@ -367,14 +385,14 @@ namespace aero {
 
   //////////////////////////////////////////////////////////
   bool DevelLib::goTo(std::string _location) {
-    controller_->moveToAsync(_location);
+    controller_->moveTo(_location);
 
     while (controller_->isMoving() && ros::ok()) {
       ROS_INFO("i'm going to %s", _location.c_str());
       usleep(200 * 1000);
     }
     usleep(1000 * 1000);
-    if (!controller_->at(_location, 0.1)) {
+    if (!controller_->isAt(_location, 0.1)) {
       ROS_WARN("i can't move to %s", _location.c_str());
       return false;
     }
@@ -400,7 +418,7 @@ namespace aero {
   }
 
   //////////////////////////////////////////////////////////
-  bool DevelLib::fastestTrajectory3(const aero::arm _arm, const std::vector<geometry_msgs::Pose> _poses, const aero::eef _eef, const Eigen::Vector3d _des_pos, aero::trajectory& _tra) {
+  bool DevelLib::fastestTrajectory3(const aero::arm _arm, const std::vector<aero::Transform> _poses, const aero::eef _eef, const Eigen::Vector3d _des_pos, aero::trajectory& _tra) {
     // check poses length
     if (static_cast<int>(_poses.size()) != 3) {
       ROS_WARN("%s: poses legnth must be three! now %d", __FUNCTION__, static_cast<int>(_poses.size()));
@@ -408,8 +426,7 @@ namespace aero {
     }
 
     // make desired lifter
-    Eigen::Vector3d last_pos;
-    tf::pointMsgToEigen(_poses.at(2).position, last_pos);
+    Eigen::Vector3d last_pos = _poses.at(2).translation();
     // lifter limit
     double z_max = 0.0, z_min= -0.4;
     // when use lifter x
@@ -443,7 +460,7 @@ namespace aero {
     controller_->setRobotStateVariables(reset_pose);
     if (!controller_->setFromIK(_arm ,aero::ikrange::torso, _poses.at(0), _eef)) {
       ROS_WARN("%s: entry ik failed", __FUNCTION__);
-      ROS_WARN("pos: x:%f y:%f z:%f", _poses.at(0).position.x, _poses.at(0).position.y, _poses.at(0).position.z);
+      ROS_WARN("pos: x:%f y:%f z:%f", _poses.at(0).translation().x(), _poses.at(0).translation().y(), _poses.at(0).translation().z());
       return false;
     } else {
       std::map<aero::joint, double> tmp;
@@ -455,7 +472,7 @@ namespace aero {
     controller_->setRobotStateVariables(reset_pose);
     if (!controller_->setFromIK(_arm ,aero::ikrange::torso, _poses.at(1), _eef)) {
       ROS_WARN("%s: mid ik failed", __FUNCTION__);
-      ROS_WARN("pos: x:%f y:%f z:%f", _poses.at(1).position.x, _poses.at(1).position.y, _poses.at(1).position.z);
+      ROS_WARN("pos: x:%f y:%f z:%f", _poses.at(1).translation().x(), _poses.at(1).translation().y(), _poses.at(1).translation().z());
       return false;
     } else {
       std::map<aero::joint, double> tmp;
@@ -467,7 +484,7 @@ namespace aero {
     controller_->setRobotStateVariables(reset_pose);
     if (!controller_->setFromIK(_arm ,aero::ikrange::torso, _poses.at(2), _eef)) {
       ROS_WARN("%s: end ik failed", __FUNCTION__);
-      ROS_WARN("pos: x:%f y:%f z:%f", _poses.at(2).position.x, _poses.at(2).position.y, _poses.at(2).position.z);
+      ROS_WARN("pos: x:%f y:%f z:%f", _poses.at(2).translation().x(), _poses.at(2).translation().y(), _poses.at(2).translation().z());
       return false;
     } else {
       std::map<aero::joint, double> tmp;
