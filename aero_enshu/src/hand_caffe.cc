@@ -78,19 +78,18 @@ bool preinteractionCb(negomo_enshu::RobotAction::Request &_req,
 // handover action
 int handover(int _inhands, int &_nexttask) {
   usleep(1000 * 1000); // pause a while
-  std::map<aero::joint, double> av;
-  robot_->getResetManipPose(av);
-  av.at(aero::joint::r_shoulder_r) = 0.0;
-  av.at(aero::joint::r_shoulder_p) = -20.0 * M_PI / 180.0;
-  av.at(aero::joint::r_shoulder_y) = 0.0;
-  av.at(aero::joint::r_elbow) = -70.0 * M_PI / 180.0;
-  av.at(aero::joint::r_wrist_y) = -M_PI / 2.0;
-  av.at(aero::joint::r_wrist_r) = 0.0;
+  robot_->setPoseVariables(aero::pose::reset);
+  robot_->setLifter(0.0, 0.0);
+  robot_->setJoint(aero::joint::r_shoulder_r, 0.0);
+  robot_->setJoint(aero::joint::r_shoulder_p, -20.0 * M_PI / 180.0);
+  robot_->setJoint(aero::joint::r_shoulder_y, 0.0);
+  robot_->setJoint(aero::joint::r_elbow, -70.0 * M_PI / 180.0);
+  robot_->setJoint(aero::joint::r_wrist_y, -M_PI / 2.0);
+  robot_->setJoint(aero::joint::r_wrist_r, 0.0);
   robot_->setNeck(0.0, 0.0, 0.0);
-  av.at(aero::joint::lifter_x) = 0.0;
-  av.at(aero::joint::lifter_z) = 0.0;
-  robot_->setRobotStateVariables(av);
-  robot_->sendAngleVector(lib_->calcPathTime(av, 0.5), aero::ikrange::lifter);
+  std::map<aero::joint, double> av;
+  robot_->getRobotStateVariables(av);
+  robot_->sendAngleVector(lib_->calcPathTime(av, 0.5), aero::ikrange::wholebody);
   usleep(1000 * 1000); // wait handover finish
   robot_->openHand(aero::arm::rarm);
   return lib_->getUsingHandsNum();

@@ -76,11 +76,11 @@ namespace aero {
 
   public: int calcPathTime(std::map<aero::joint, double> _av_from, std::map<aero::joint, double> _av_to, double _factor=0.5);
 
-  public: int calcPathTime(std::map<aero::joint, double> _av, double _factor=0.5, bool _update_model=true);
+  public: int calcPathTime(std::map<aero::joint, double> _av, double _factor=0.5);
 
-  public: std::vector<int> calcTrajectoryTimes(aero::trajectory _trajectory, double _factor=0.5, bool _update_model=true);
+  public: std::vector<int> calcTrajectoryTimes(aero::trajectory _trajectory, double _factor=0.5);
 
-  public: std::vector<int> calcTrajectoryTimes(aero::trajectory _trajectory, std::vector<double> _factors, bool _update_model=true);
+  public: std::vector<int> calcTrajectoryTimes(aero::trajectory _trajectory, std::vector<double> _factors);
 
     // hand usage
 
