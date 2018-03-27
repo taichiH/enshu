@@ -413,34 +413,8 @@ namespace aero {
       return false;
     }
 
-    // make desired lifter
-    Eigen::Vector3d last_pos = _poses.at(2).translation();
-    // lifter limit
-    double z_max = 0.0, z_min= -0.4;
-    // when use lifter x
-    double z_op_max = -0.08, z_op_min = -0.25, x_op_max = 0.17, x_op_min = -0.17;
-    controller_->setLifter(0.0, 0.0);
-    Eigen::Vector3d waist = controller_->getWaistPosition();
-    //desired on lifter top
-    double x_des = _des_pos.x(), y_des = _des_pos.y(), z_des = _des_pos.z() + waist.z();
-
-    // calc ideal lifter position
-    double lifter_x_ideal = last_pos.x() - x_des;
-    double lifter_z_ideal = last_pos.z() - z_des;
-    // limit actual lifter restriction
-    double lifter_x, lifter_z;
-    if (lifter_z_ideal <= z_op_max &&  lifter_z_ideal >= z_op_min) {
-      // in on plane mode
-      lifter_z = lifter_z_ideal;
-      lifter_x = std::max(x_op_min, std::min(x_op_max, lifter_x_ideal));
-    } else { // in height only mode
-      lifter_z = std::max(z_min, std::min(z_max, lifter_z_ideal));
-      lifter_x = 0.0;
-    }
-    // set to model and get initial pose
     std::map<aero::joint, double> reset_pose;
     controller_->getResetManipPose(reset_pose);
-    controller_->setLifter(lifter_x, lifter_z);
 
     // solve entry
     aero::trajectory ends, mids, entrys;
