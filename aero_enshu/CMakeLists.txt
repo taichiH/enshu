@@ -3,7 +3,7 @@ project(aero_enshu)
 
 find_package(catkin REQUIRED
   roscpp tf std_msgs sensor_msgs geometry_msgs roslib
-  aero_std negomo_enshu aero_devel_lib
+  aero_std negomo_enshu aero_devel_lib aero_recognition_msgs
   )
 
 include_directories(
@@ -13,7 +13,7 @@ include_directories(
 )
 
 catkin_package(
- CATKIN_DEPENDS roscpp tf std_msgs sensor_msgs geometry_msgs roslib aero_devel_lib negomo_enshu aero_std
+ CATKIN_DEPENDS roscpp tf std_msgs sensor_msgs geometry_msgs roslib aero_devel_lib negomo_enshu aero_std aero_recognition_msgs
 )
 
 add_definitions(-std=c++11)

@@ -22,7 +22,7 @@ catkin_package(
   INCLUDE_DIRS include
   LIBRARIES aero_devel_lib
   CATKIN_DEPENDS
-  roscpp tf std_msgs sensor_msgs geometry_msgs roslib aero_std
+  roscpp tf std_msgs sensor_msgs geometry_msgs roslib aero_std aero_recognition_msgs
 )
 
 add_definitions(-std=c++11)
