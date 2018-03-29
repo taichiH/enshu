@@ -8,7 +8,7 @@ Negomo::Negomo(ros::NodeHandle _nh, int _rate, parameters _params)
   // init ros node
   this->nh = _nh;
   this->param = _params;
-  std::string filename = ros::package::getPath("negomo");
+  std::string filename = ros::package::getPath("negomo_enshu");
   filename += "/data/";
 
 #if defined(__DEBUG__)
@@ -99,7 +99,7 @@ Negomo::Negomo(ros::NodeHandle _nh, std::string _model_file, parameters _params)
 {
   this->nh = _nh;
   this->param = _params;
-  std::string filename = ros::package::getPath("negomo");
+  std::string filename = ros::package::getPath("negomo_enshu");
   filename += "/data/";
   filename += _model_file;
   this->hmm.import(filename);

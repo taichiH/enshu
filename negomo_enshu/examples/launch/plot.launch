@@ -2,14 +2,14 @@
   <arg name="settings" default="negomo.yaml"/>
   <arg name="use_input" default="false"/>
 
-  <node name="negomo_plot" pkg="negomo"
+  <node name="negomo_plot" pkg="negomo_enshu"
         type="negomo_plot2.py" output="screen">
       <param name="no_canvas" value="1"/>
-      <rosparam file="$(find negomo)/config/$(arg settings)"
+      <rosparam file="$(find negomo_enshu)/config/$(arg settings)"
                 command="load"/>
   </node>
 
-  <node name="negomo_viewplan" pkg="negomo"
+  <node name="negomo_viewplan" pkg="negomo_enshu"
         type="negomo_viewplan.py" output="screen">
       <param name="use_input" value="$(arg use_input)"/>
   </node>

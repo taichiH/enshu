@@ -89,7 +89,7 @@ int handover(int _inhands, int &_nexttask) {
   robot_->setNeck(0.0, 0.0, 0.0);
   std::map<aero::joint, double> av;
   robot_->getRobotStateVariables(av);
-  robot_->sendAngleVector(lib_->calcPathTime(av, 0.5), aero::ikrange::wholebody);
+  robot_->sendModelAngles(lib_->calcPathTime(av, 0.5), aero::ikrange::wholebody);
   robot_->waitInterpolation();
   robot_->openHand(aero::arm::rarm);
   return lib_->getUsingHandsNum();

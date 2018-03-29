@@ -2,7 +2,7 @@
 
 # check path
 
-if [[ $(rospack find negomo | grep 'not found') != "" ]]
+if [[ $(rospack find negomo_enshu | grep 'not found') != "" ]]
 then
     echo "error"
     exit
@@ -12,8 +12,8 @@ echo "creating header ......"
 
 # create data header
 
-template_file="$(rospack find negomo)/utils/template.hh"
-data_file="$(rospack find negomo)/src/data.hh"
+template_file="$(rospack find negomo_enshu)/utils/template.hh"
+data_file="$(rospack find negomo_enshu)/src/data.hh"
 
 cp $template_file $data_file
 
@@ -26,7 +26,7 @@ filenames="\t"
 
 for dat in `seq 1 ${#}`
 do
-    rosrun negomo create_negomo.sh $1
+    rosrun negomo_enshu create_negomo.sh $1
     parameter_names="${parameter_names}\"/negotiation_model/k_${1}\", "
     filenames="${filenames}\"${1}.hmm\", "
     shift

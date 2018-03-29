@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 import rospy
-from negomo.msg import NegomoSensors
+from negomo_enshu.msg import NegomoSensors
 import pygame
 import sys
 

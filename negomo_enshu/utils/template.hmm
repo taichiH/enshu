@@ -1,0 +1,29 @@
+#STOCHHMM MODEL FILE
+
+<MODEL INFORMATION>
+======================================================
+MODEL_NAME: NEGOTIATION MODEL
+MODEL_DESCRIPTION: template description
+MODEL_CREATION_DATE: template data
+
+<TRACK SYMBOL DEFINITIONS>
+======================================================
+OBSERVATION:
+
+<STATE DEFINITIONS>
+######################################################
+STATE:
+  NAME: INIT
+TRANSITION: STANDARD: P(X)
+
+######################################################
+STATE:
+  NAME:
+  PATH_LABEL:
+TRANSITION: STANDARD: P(X)
+  END: 1
+EMISSION: OBSERVATION: P(X)
+  ORDER: 0
+
+######################################################
+//END

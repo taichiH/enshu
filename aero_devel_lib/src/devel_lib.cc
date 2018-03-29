@@ -151,11 +151,11 @@ namespace aero {
 
   //////////////////////////////////////////////////////////
   bool DevelLib::placeCoffee(Eigen::Vector3d _pos, double _offset_y, aero::arm _arm) {
-    controller_->setPoseVariables(aero::pose::reset);
+    controller_->setPoseVariables(aero::pose::reset_manip);
     controller_->resetLookAt();
     std::map<aero::joint, double> av;
     controller_->getRobotStateVariables(av);
-    controller_->sendAngleVector(calcPathTime(av, 0.7));
+    controller_->sendModelAngles(calcPathTime(av, 0.7));
     controller_->waitInterpolation();
 
     double factor = 0.7;
@@ -207,27 +207,27 @@ namespace aero {
 
   //////////////////////////////////////////////////////////
   void DevelLib::lookContainerFront(float _lifter_z) {
-    controller_->setPoseVariables(aero::pose::reset);
+    controller_->setPoseVariables(aero::pose::reset_manip);
     controller_->setLifter(0.05, _lifter_z);
     controller_->setJoint(aero::joint::r_shoulder_y, -0.3);
     controller_->setJoint(aero::joint::l_shoulder_y, 0.3);
     controller_->setNeck(0.0, M_PI/ 2.0 ,0.0);
     std::map<aero::joint, double> av;
     controller_->getRobotStateVariables(av);
-    controller_->sendAngleVector(calcPathTime(av, 0.8),aero::ikrange::wholebody);
+    controller_->sendModelAngles(calcPathTime(av, 0.8),aero::ikrange::wholebody);
     controller_->waitInterpolation();
  }
 
   //////////////////////////////////////////////////////////
   void DevelLib::lookShelf() {
-    controller_->setPoseVariables(aero::pose::reset);
+    controller_->setPoseVariables(aero::pose::reset_manip);
     controller_->setLifter(0.0, -0.1);
     controller_->setJoint(aero::joint::r_shoulder_y, -0.3);
     controller_->setJoint(aero::joint::l_shoulder_y, -0.1);
     controller_->setNeck(0.0,M_PI/2.0,0.0);
     std::map<aero::joint, double> av;
     controller_->getRobotStateVariables(av);
-    controller_->sendAngleVector(std::max(calcPathTime(av, 0.8), 1000), aero::ikrange::wholebody);
+    controller_->sendModelAngles(std::max(calcPathTime(av, 0.8), 1000), aero::ikrange::wholebody);
     controller_->waitInterpolation();
  }
 
@@ -414,7 +414,8 @@ namespace aero {
     }
 
     std::map<aero::joint, double> reset_pose;
-    controller_->getResetManipPose(reset_pose);
+    controller_->setPoseVariables(aero::pose::reset_manip);
+    controller_->getRobotStateVariables(reset_pose);
 
     // solve entry
     aero::trajectory ends, mids, entrys;

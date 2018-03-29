@@ -7,8 +7,8 @@ import time
 import yaml
 from collections import namedtuple
 from std_msgs.msg import String
-from negomo.msg import NegomoTask
-from negomo.srv import PlannerDefaultInteractionCall, PlannerDefaultInteractionCallResponse
+from negomo_enshu.msg import NegomoTask
+from negomo_enshu.srv import PlannerDefaultInteractionCall, PlannerDefaultInteractionCallResponse
 
 Phrase = namedtuple('Phrase', 'phrase time template tail')
 Result = namedtuple('Result', 'phrase time')

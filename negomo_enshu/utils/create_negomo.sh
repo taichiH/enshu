@@ -2,7 +2,7 @@
 
 # check path
 
-if [[ $(rospack find negomo | grep 'not found') != "" ]]
+if [[ $(rospack find negomo_enshu | grep 'not found') != "" ]]
 then
     echo "error"
     exit
@@ -11,9 +11,9 @@ fi
 
 # set variables
 
-parameter_file="$(rospack find negomo)/data/$1"
-write_file="$(rospack find negomo)/data/$1.hmm"
-template_file="$(rospack find negomo)/utils/template.hmm"
+parameter_file="$(rospack find negomo_enshu)/data/$1"
+write_file="$(rospack find negomo_enshu)/data/$1.hmm"
+template_file="$(rospack find negomo_enshu)/utils/template.hmm"
 
 echo $parameter_file
 echo $write_file

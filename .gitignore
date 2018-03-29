@@ -3,3 +3,4 @@ negomo_enshu/CMakeLists.txt
 *~
 log
 *.hmm
+!template.hmm

@@ -3,8 +3,8 @@
 import cv2
 import rospy
 import numpy as np
-from negomo.msg import NegomoTask
-from negomo.srv import PlannerDefaultInteractionCall, PlannerDefaultInteractionCallResponse
+from negomo_enshu.msg import NegomoTask
+from negomo_enshu.srv import PlannerDefaultInteractionCall, PlannerDefaultInteractionCallResponse
 
 LINE_AA = 16
 
