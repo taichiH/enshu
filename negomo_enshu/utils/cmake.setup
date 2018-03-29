@@ -57,30 +57,30 @@ include_directories(
 )
 add_library(negomo_enshu_lib lib/NegomoLib.cc)
 target_link_libraries(negomo_enshu_lib ${catkin_LIBRARIES})
-add_dependencies(negomo_enshu_lib negomo_generate_messages_cpp)
+add_dependencies(negomo_enshu_lib negomo_enshu_generate_messages_cpp)
 
 add_library(negomo_enshu_planner_lib lib/NegomoPlannerLib.cc)
 target_link_libraries(negomo_enshu_planner_lib ${catkin_LIBRARIES})
-add_dependencies(negomo_enshu_planner_lib negomo_generate_messages_cpp)
+add_dependencies(negomo_enshu_planner_lib negomo_enshu_generate_messages_cpp)
 
 add_library(negomo_enshu_lib2 lib/NegomoLib.cc lib/NegomoPlannerLib.cc lib/NegomoLib2.cc)
 target_link_libraries(negomo_enshu_lib2 ${catkin_LIBRARIES})
-add_dependencies(negomo_enshu_lib2 negomo_generate_messages_cpp)
+add_dependencies(negomo_enshu_lib2 negomo_enshu_generate_messages_cpp)
 
 # add node
 add_executable(negomo_bridge nodes/negomo_bridge.cc lib/NegomoLib.cc)
 target_link_libraries(negomo_bridge ${catkin_LIBRARIES})
-add_dependencies(negomo_bridge negomo_generate_messages_cpp)
+add_dependencies(negomo_bridge negomo_enshu_generate_messages_cpp)
 
 if (roboenvcv_FOUND)
   include_directories(${roboenvcv_INCLUDE_DIRS})
   add_executable(negomo_sensor nodes/negomo_sensor.cc)
   target_link_libraries(negomo_sensor ${catkin_LIBRARIES})
-  add_dependencies(negomo_sensor negomo_generate_messages_cpp)
+  add_dependencies(negomo_sensor negomo_enshu_generate_messages_cpp)
 
   add_executable(dummy_sensor_filter nodes/dummy_sensor_filtering.cc)
   target_link_libraries(dummy_sensor_filter ${catkin_LIBRARIES})
-  add_dependencies(dummy_sensor_filter negomo_generate_messages_cpp)
+  add_dependencies(dummy_sensor_filter negomo_enshu_generate_messages_cpp)
 endif()
 
 
@@ -103,7 +103,7 @@ if(FOUND_HMMLIB)
     )
   add_executable(negotiation_model src/main.cc src/negomo.cc src/test.cc)
   target_link_libraries(negotiation_model ${catkin_LIBRARIES} hmmlib)
-  add_dependencies(negotiation_model negomo_generate_messages_cpp)
+  add_dependencies(negotiation_model negomo_enshu_generate_messages_cpp)
 else()
   message(WARNING "hmmlib not found, not compiling some codes")
 endif()
