@@ -40,6 +40,10 @@ namespace aero {
 
   public: bool placeCoffee(Eigen::Vector3d _pos=Eigen::Vector3d(0.75, -0.25, 1.05), double _offset_y=0.0, aero::arm _arm=aero::arm::rarm);
 
+  public: bool placeCoffeeReach(Eigen::Vector3d _pos=Eigen::Vector3d(0.75, -0.25, 1.05), double _offset_y=0.0, aero::arm _arm=aero::arm::rarm);
+
+  public: bool placeCoffeeReturn();
+
     // look motions
 
   public: bool poseAndRecognize(const std::string _location, const std::string _item, Eigen::Vector3d& _pos, float _lifter_z=-0.25);
@@ -130,6 +134,8 @@ namespace aero {
   private: ros::Subscriber hand_sub_;
 
   private: ros::Publisher speak_pub_;
+
+  private: aero::trajectory tra_;
   };
 
   typedef std::shared_ptr<DevelLib> DevelLibPtr;
