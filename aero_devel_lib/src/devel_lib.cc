@@ -152,6 +152,14 @@ namespace aero {
 
   //////////////////////////////////////////////////////////
   bool DevelLib::placeCoffee(Eigen::Vector3d _pos, double _offset_y, aero::arm _arm) {
+    placeCoffeeReach(_pos, _offset_y, _arm);
+    openHand(_arm);
+    placeCoffeeReturn();
+    return true;
+  }
+
+  //////////////////////////////////////////////////////////
+  bool DevelLib::placeCoffeeReach(Eigen::Vector3d _pos, double _offset_y, aero::arm _arm) {
     controller_->setPoseVariables(aero::pose::reset_manip);
     controller_->resetLookAt();
     std::map<aero::joint, double> av;
@@ -161,9 +169,9 @@ namespace aero {
 
     double factor = 0.7;
 
+    tra_.clear();
     // make trajectory
-    bool res; aero::trajectory tra;
-    res = makeTopGrasp(_arm, _pos, tra);
+    bool res = makeTopGrasp(_arm, _pos, tra_);
 
     if (!res) {
       ROS_WARN("%s: place ik failed", __FUNCTION__);
@@ -176,17 +184,19 @@ namespace aero {
     }
 
     std::vector<double> factors = {0.8, 0.8, 0.5};
-    controller_->sendTrajectory(tra, calcTrajectoryTimes(tra, factors), aero::ikrange::wholebody);
+    controller_->sendTrajectory(tra_, calcTrajectoryTimes(tra_, factors), aero::ikrange::wholebody);
+    controller_->waitInterpolation();
+    return true;
+  }
 
-    openHand(_arm);
-
-    factors.clear();
+  bool DevelLib::placeCoffeeReturn() {
+    std::vector<double> factors;
     factors = {0.5, 0.8};
     aero::trajectory tra_release;
-    tra_release.push_back(tra.at(1));
-    tra_release.push_back(tra.at(0));
+    tra_release.push_back(tra_.at(1));
+    tra_release.push_back(tra_.at(0));
     controller_->sendTrajectory(tra_release, calcTrajectoryTimes(tra_release, factors), aero::ikrange::wholebody);
-
+    controller_->waitInterpolation();
     return true;
   }
 
