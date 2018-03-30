@@ -1,0 +1,13 @@
+<launch>
+  <arg name="speech_topic" default="/speech"/>
+
+  <node name="jsk_first_project" pkg="aero_enshu"
+        type="jsk_first_project" output="screen">
+     <remap from="/windows/voice" to="$(arg speech_topic)"/>
+  </node>
+
+  <node name="simulated_speak" pkg="negomo_enshu"
+        type="simulated_speak.py" output="screen"/>
+
+  <include file="$(find negomo_enshu)/examples/launch/plot.launch"/>
+</launch>
