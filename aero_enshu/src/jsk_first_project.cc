@@ -22,32 +22,40 @@ int error(int _inhands, int &_nexttask) {
   return _inhands;
 };
 
-int resetPose(int _inhands, int &_nexttask){
+int containerPose(int _inhands, int &_nexttask){
   lib_->lookContainerFront();
+  return _inhands;
+}
+
+int shelfPose(int _inhands, int &_nexttask){
+  lib_->lookShelfFront();
   return _inhands;
 }
 
 int watch(int _inhands, int &_nexttask) {
   lib_->setFCNModel("final"); // set recognition model
+  std::vector<aero_recognition_msgs::Scored2DBox> hand_result = lib_->recognizeHand();
   std::vector<Eigen::Vector3d> results;
   bool found = lib_->findItem("pie", results);
   ROS_INFO("finished");
+
+  if(!hand_result.empty()){
+    ROS_INFO("hand detect!");
+    return _inhands;
+  }
   if(!found){
     ROS_INFO("not found");
     return _inhands;
   }
-  ROS_INFO("hoge hoge");
   if(results_buf_.empty()){
     results_buf_.push_back(results.at(0));
     return _inhands;
   }
-  ROS_INFO("piyo piyo");
 
   const double diff_min = 0.08;
-  const double diff_max = 0.13;
   for(int i=0; i<results.size(); ++i){
     Eigen::Vector3d diff = results.at(i) - results_buf_.at(0);
-    if(diff.norm() > diff_min && diff.norm() < diff_max){
+    if(diff.norm() > diff_min){
       results_buf_.push_back(results.at(i));
       for(int j=2; j<MAX; ++j){
         results_buf_.push_back(results_buf_.at(j-1) + diff);
@@ -62,8 +70,18 @@ int watch(int _inhands, int &_nexttask) {
 
 int put(int _inhands, int &_nexttask) {
   int index = planner_->getEntities().get<int>("index", 2);
-  bool found = lib_->placeCoffee(Eigen::Vector3d(results_buf_.at(index).x(), results_buf_.at(index).y(), results_buf_.at(index).z()), 0);
+  Eigen::Vector3d shelf_initial(results_buf_.at(index).x(), results_buf_.at(index).y(), results_buf_.at(index).z());
+
+  aero::Transform obj_pos;
+  for(int i=0; i<results_buf_.size(); ++i){
+    obj_pos = aero::Translation(results_buf_.at(i));
+    lib_->features_->setMarker(obj_pos, i+5);
+  }
+
+  bool found = lib_->placeCoffee(shelf_initial, 0);
   if(index == MAX-1){
+    ROS_INFO("put loop end");
+    planner_->getEntities().put("loopCondition", false);
     return lib_->getUsingHandsNum();
   }
   planner_->getEntities().put("index", index+1);
@@ -72,12 +90,15 @@ int put(int _inhands, int &_nexttask) {
 
 // picking action
 int pick(int _inhands, int &_nexttask) {
-  // lib_->setFCNModel("container"); // set recognition model
   lib_->setFCNModel("final"); // set recognition model
 
+  aero::Transform obj_pos;
+  for(int i=0; i<results_buf_.size(); ++i){
+    obj_pos = aero::Translation(results_buf_.at(i));
+    lib_->features_->setMarker(obj_pos, i+5);
+  }
+
   // get position of item
-  // Eigen::Vector3d pos;
-  // bool found = lib_->poseAndRecognize("container", "caffelatte", pos, -0.12);
   bool found = lib_->poseAndRecognize("container", "pie", pos_, -0.12);
 
   if (found)
@@ -101,7 +122,7 @@ int main(int argc, char **argv) {
   robot_.reset(new aero::interface::AeroMoveitInterface(nh));
   lib_.reset(new aero::DevelLib(nh, robot_));
   planner_.reset(new negomo_lib::NegomoBridge2(nh, "/negomo/", nullptr));
-  
+
   // create actions for planner
   negomo_lib::ActionList exceptions =
     {std::make_tuple(0, 0, error, planner_->emptyAction, "error"),
@@ -109,7 +130,7 @@ int main(int argc, char **argv) {
   negomo_lib::ActionList temps = {};
   negomo_lib::ActionList task0 =
     {std::make_tuple(0, 0, planner_->initTask, planner_->emptyAction, "init"),
-     std::make_tuple(0, 0, resetPose, planner_->emptyAction, "reset"),
+     std::make_tuple(0, 0, containerPose, planner_->emptyAction, "container"),
      std::make_tuple(0, 0, planner_->loopStart, planner_->emptyAction, "loop"),
      std::make_tuple(0, 0, watch, planner_->emptyAction, "watch"),
      std::make_tuple(0, 0, planner_->loopEnd, planner_->emptyAction, "loop"),
@@ -122,7 +143,6 @@ int main(int argc, char **argv) {
      std::make_tuple(0, 0, planner_->loopEnd, planner_->emptyAction, "loop"),
      std::make_tuple(0, 0, planner_->finishTask, planner_->emptyAction, "finishTask"),};
 
-  
   // add actions to planner
   std::vector<negomo_lib::ActionList> tasks = {task0, task1};
 
