@@ -10,6 +10,8 @@
 #include <std_srvs/Empty.h>
 #include <aero_std/TopGrasp-inl.hh>
 #include <aero_recognition_msgs/LabeledPoseArray.h>
+#include <aero_recognition_msgs/Scored2DBoxArray.h>
+#include <aero_recognition_msgs/Scored2DBox.h>
 #include <tf/transform_listener.h>
 
 namespace aero {
@@ -44,17 +46,25 @@ namespace aero {
 
   public: void lookContainerFront(float _lifter_z=-0.25);
 
+  public: void lookShelfFront(float _lifter_z=0.0);
+
   public: void lookShelf();
 
     // recognition
 
   public: void startFCN();
 
+  public: void startHandDetection();
+
+  public: void endHandDetection();
+
   public: void setFCNModel(std::string _name, int _projector_id=0);
 
   public: void setObject3DProjectorMode(int _id);
 
   public: std::vector<aero::item> recognizeItems();
+
+  public: std::vector<aero_recognition_msgs::Scored2DBox> recognizeHand();
 
   public: bool findItem(std::string _label, std::vector<Eigen::Vector3d> &_positions);
 
@@ -63,6 +73,9 @@ namespace aero {
   public: void stopFCN();
 
   private: void fcnCallback_(const aero_recognition_msgs::LabeledPoseArray::ConstPtr _msg);
+
+  private: void handCallback_(const aero_recognition_msgs::Scored2DBoxArray::ConstPtr _hand_boxes);
+
 
     // moving
 
@@ -100,9 +113,11 @@ namespace aero {
 
   private: aero::interface::AeroMoveitInterface::Ptr controller_;
 
-  private: aero::vision::ObjectFeaturesPtr features_;
+  public: aero::vision::ObjectFeaturesPtr features_;
 
   private: aero_recognition_msgs::LabeledPoseArray fcn_msg_;
+
+  private: aero_recognition_msgs::Scored2DBoxArray hand_msg_;
 
   private: bool using_rarm_ = false;
 
@@ -111,6 +126,8 @@ namespace aero {
   private: ros::ServiceClient fcn_starter_;
 
   private: ros::Subscriber fcn_sub_;
+
+  private: ros::Subscriber hand_sub_;
 
   private: ros::Publisher speak_pub_;
   };
