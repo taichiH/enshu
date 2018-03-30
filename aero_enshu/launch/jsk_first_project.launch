@@ -10,4 +10,19 @@
         type="simulated_speak.py" output="screen"/>
 
   <include file="$(find negomo_enshu)/examples/launch/plot.launch"/>
+
+  <node name="example_interaction_cb" pkg="aero_enshu"
+        type="interaction.py" output="screen">
+     <param name="phrase" value="I will hand over this item in a moment."/>
+     <param name="time" value="1.0"/>
+  </node>
+
+  <node name="negomo_sensor_hand" pkg="aero_enshu"
+        type="detect_hand" output="screen"/>
+
+  <node name="negomo" pkg="negomo_enshu"
+        type="negotiation_model">
+     <rosparam file="$(find negomo_enshu)/config/negomo.yaml"
+               command="load"/>
+  </node>
 </launch>

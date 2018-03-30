@@ -13,7 +13,7 @@ aero::DevelLibPtr lib_; // development library
 negomo_lib::NegomoBridge2Ptr planner_; // planner
 Eigen::Vector3d pos_;
 std::vector<Eigen::Vector3d> results_buf_;
-int index_;
+std::map<std::string, std::function<void(int)> > pre_;
 
 // when entering error
 int error(int _inhands, int &_nexttask) {
@@ -78,7 +78,24 @@ int put(int _inhands, int &_nexttask) {
     lib_->features_->setMarker(obj_pos, i+5);
   }
 
-  bool found = lib_->placeCoffee(shelf_initial, 0);
+  negomo_lib::waitSettings ws;
+  ws.interaction_flag =
+    negomo_enshu::PlannerBridgeRequest::Request::IGNORE;
+
+  // start interaction on background
+  planner_->iStart(negomo_lib::jumpSettings(), ws);
+
+  bool found = lib_->placeCoffeeReach(shelf_initial, 0);
+
+  // finish interaction on background
+  planner_->iJoin(_inhands, _nexttask);
+  if (_nexttask != -1)
+    return lib_->getUsingHandsNum();
+
+  lib_->openHand(aero::arm::rarm);
+  lib_->placeCoffeeReturn();
+
+  std::cerr << "indes: " << index << std::endl;
   if(index == MAX-1){
     ROS_INFO("put loop end");
     planner_->getEntities().put("loopCondition", false);
@@ -111,6 +128,24 @@ int pick(int _inhands, int &_nexttask) {
   return lib_->getUsingHandsNum();
 };
 
+// pre-interactions and callback
+void proactive0(int _target) {}; // not used in this demo
+void proactive1(int _target) {}; // not used in this demo
+void reactive0(int _target) {
+  // robot_->setLookAt(Eigen::Vector3d(1.0, 0.0, 1.8), false, true, false);
+  ROS_INFO("in reactive 0");
+  usleep(1000 * 1000);
+};
+void returnPlanner(int _target) {
+  // robot_->setLookAtTopic("/look_at/previous");
+  // usleep(2000 * 1000);
+};
+bool preinteractionCb(negomo_enshu::RobotAction::Request &_req,
+                      negomo_enshu::RobotAction::Response &_res) {
+  ROS_INFO("looking for action %s", _req.action.c_str());
+  pre_[_req.action](_req.target_id);
+  return true;
+}
 
 // main
 int main(int argc, char **argv) {
@@ -122,6 +157,15 @@ int main(int argc, char **argv) {
   robot_.reset(new aero::interface::AeroMoveitInterface(nh));
   lib_.reset(new aero::DevelLib(nh, robot_));
   planner_.reset(new negomo_lib::NegomoBridge2(nh, "/negomo/", nullptr));
+
+  // add pre-interactions
+  pre_["/negomo/reset"] = returnPlanner;
+  pre_["/negomo/proactive0"] = proactive0; // not used in this demo
+  pre_["/negomo/proactive1"] = proactive1; // not used in this demo
+  pre_["/negomo/reactive0"] = reactive0;
+  // add preinteraction callback to planner
+  planner_->initlib(boost::bind(&preinteractionCb, _1, _2));
+
 
   // create actions for planner
   negomo_lib::ActionList exceptions =
@@ -147,7 +191,7 @@ int main(int argc, char **argv) {
   std::vector<negomo_lib::ActionList> tasks = {task0, task1};
 
   // set entity values for each task
-  std::vector<std::vector<std::string> > task_entities = {{"task0","iOff=true", "loopCondition=true"}, {"task1","iOff=true", "loopCondition=true", "index=2"}};
+  std::vector<std::vector<std::string> > task_entities = {{"task2","iOff=true", "loopCondition=true"}, {"task1","iOff=true", "loopCondition=true", "index=2"}};
 
   // init planner
   planner_->init(task_entities); // add default entities
