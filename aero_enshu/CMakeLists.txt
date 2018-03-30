@@ -24,5 +24,9 @@ target_link_libraries(pick_caffe ${catkin_LIBRARIES})
 add_executable(hand_caffe src/hand_caffe.cc)
 target_link_libraries(hand_caffe ${catkin_LIBRARIES})
 
+add_executable(jsk_first_project src/jsk_first_project.cc)
+target_link_libraries(jsk_first_project ${catkin_LIBRARIES})
+
 add_executable(detect_hand nodes/detect_hand.cc)
 target_link_libraries(detect_hand ${catkin_LIBRARIES})
+
