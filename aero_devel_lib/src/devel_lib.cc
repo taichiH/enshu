@@ -10,6 +10,7 @@ namespace aero {
     features_.reset(new aero::vision::ObjectFeatures(nh_, controller_));
     features_->setCameraTransform("head_base_link", _cam_pos, _cam_qua);
     fcn_sub_ = nh_.subscribe("/object_3d_projector/output", 1, &DevelLib::fcnCallback_, this);
+    hand_sub_ = nh_.subscribe("/hand_detector/boxes", 1, &DevelLib::handCallback_, this);
     fcn_starter_ = nh_.serviceClient<std_srvs::SetBool>("/object_detector/set_mode");
     speak_pub_ = nh_.advertise<std_msgs::String>("/windows/voice", 10);
     usleep(1000 * 1000);
@@ -218,6 +219,21 @@ namespace aero {
     controller_->waitInterpolation();
  }
 
+
+    //////////////////////////////////////////////////////////
+  void DevelLib::lookShelfFront(float _lifter_z) {
+    controller_->setPoseVariables(aero::pose::reset_manip);
+    controller_->setLifter(0.05, _lifter_z);
+    controller_->setJoint(aero::joint::r_shoulder_y, -0.3);
+    controller_->setJoint(aero::joint::l_shoulder_y, 0.3);
+    controller_->setJoint(aero::joint::waist_y, -M_PI / 2.0);
+    controller_->setNeck(0.0, M_PI/ 2.0 ,0.0);
+    std::map<aero::joint, double> av;
+    controller_->getRobotStateVariables(av);
+    controller_->sendModelAngles(calcPathTime(av, 0.8),aero::ikrange::wholebody);
+    controller_->waitInterpolation();
+ }
+
   //////////////////////////////////////////////////////////
   void DevelLib::lookShelf() {
     controller_->setPoseVariables(aero::pose::reset_manip);
@@ -306,6 +322,23 @@ namespace aero {
   }
 
   //////////////////////////////////////////////////////////
+  std::vector<aero_recognition_msgs::Scored2DBox> DevelLib::recognizeHand() {
+    hand_msg_ = aero_recognition_msgs::Scored2DBoxArray();
+    ros::Time now = ros::Time::now();
+    for (int i = 0; i < 20; ++i) {
+      ros::spinOnce();
+      if (hand_msg_.header.stamp > now) break;
+      usleep(100 * 1000);
+    }
+    std::vector<aero_recognition_msgs::Scored2DBox> result;
+    aero_recognition_msgs::Scored2DBox hands;
+    for (auto box : hand_msg_.boxes) {
+      result.push_back(hands);
+    }
+    return result;
+  }
+
+  //////////////////////////////////////////////////////////
   bool DevelLib::findItem(std::string _label, std::vector<Eigen::Vector3d> &_positions) {
     _positions.clear();
     std::vector<aero::item> items = recognizeItems();
@@ -369,6 +402,11 @@ namespace aero {
   //////////////////////////////////////////////////////////
   void DevelLib::fcnCallback_(const aero_recognition_msgs::LabeledPoseArray::ConstPtr _msg) {
     fcn_msg_ = *_msg;
+  }
+
+  //////////////////////////////////////////////////////////
+  void DevelLib::handCallback_(const aero_recognition_msgs::Scored2DBoxArray::ConstPtr _hand_boxes) {
+    hand_msg_ = *_hand_boxes;
   }
 
   //////////////////////////////////////////////////////////
