@@ -121,11 +121,15 @@ int main(int argc, char **argv) {
      std::make_tuple(0, 0, planner_->uiExceptionHandle, planner_->emptyAction, "onHelp")};
   negomo_lib::ActionList temps = {};
   negomo_lib::ActionList task1 =
-    {std::make_tuple(0, 1, pick, planner_->emptyAction, "pick")};
+    {std::make_tuple(0, 0, planner_->initTask, planner_->emptyAction, "init"),
+     std::make_tuple(0, 1, pick, planner_->emptyAction, "pick"),
+     std::make_tuple(1, 1, planner_->finishTask, planner_->emptyAction, "finish")};
 
   // create a second task
   negomo_lib::ActionList task2 =
-    {std::make_tuple(1, 0, handover, planner_->emptyAction, "give")};
+    {std::make_tuple(1, 1, planner_->initTask, planner_->emptyAction, "init"),
+     std::make_tuple(1, 0, handover, planner_->emptyAction, "give"),
+     std::make_tuple(0, 0, planner_->finishTask, planner_->emptyAction, "finish")};
 
   // add actions to planner
   std::vector<negomo_lib::ActionList> tasks = {task1, task2};
