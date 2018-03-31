@@ -23,13 +23,31 @@ int error(int _inhands, int &_nexttask) {
 };
 
 int containerPose(int _inhands, int &_nexttask){
+  // robot_->goPos(0.0, 0.0, 0.0);
+  robot_->moveTo("s_shelf_container");
+  while(robot_->isMoving() && ros::ok()){
+    usleep(200*1000);
+  }
   lib_->lookContainerFront();
   return _inhands;
 }
 
 int shelfPose(int _inhands, int &_nexttask){
-  lib_->lookShelfFront();
+  lib_->lookShelf();
+  robot_->moveTo("s_shelf");
+  while(robot_->isMoving() && ros::ok()){
+    usleep(200*1000);
+  }
+
   return _inhands;
+}
+
+void visualize(){
+  aero::Transform obj_pos;
+  for(int i=0; i<results_buf_.size(); ++i){
+    obj_pos = aero::Translation(results_buf_.at(i));
+    lib_->features_->setMarker(obj_pos, i+5);
+  }
 }
 
 int watch(int _inhands, int &_nexttask) {
@@ -64,7 +82,9 @@ int watch(int _inhands, int &_nexttask) {
       break;
     }
   }
-  ROS_INFO("fuga fuga");
+
+  visualize();
+
   return _inhands;
 };
 
@@ -82,19 +102,30 @@ int put(int _inhands, int &_nexttask) {
   ws.interaction_flag =
     negomo_enshu::PlannerBridgeRequest::Request::IGNORE;
 
+  // start tracking object
+  robot_->setTrackingMode(true);
+  robot_->setLookAt(shelf_initial, false, true); // look at target
   // start interaction on background
   planner_->iStart(negomo_lib::jumpSettings(), ws);
-
+  ROS_INFO("place coffee reach");
   bool found = lib_->placeCoffeeReach(shelf_initial, 0);
-
+  if (!found) {
+    planner_->setError(true, "failed put");
+    _nexttask = -404;
+  }
   // finish interaction on background
-  planner_->iJoin(_inhands, _nexttask);
+  planner_->iJoin(_inhands, _nexttask); // set next task
+
   if (_nexttask != -1)
     return lib_->getUsingHandsNum();
-
+  ROS_INFO("open hand");
   lib_->openHand(aero::arm::rarm);
+  ROS_INFO("place coffee return");
   lib_->placeCoffeeReturn();
-
+  lib_->sendResetPose();
+  
+  // finich tracking object
+  robot_->setTrackingMode(false);
   std::cerr << "indes: " << index << std::endl;
   if(index == MAX-1){
     ROS_INFO("put loop end");
@@ -102,6 +133,7 @@ int put(int _inhands, int &_nexttask) {
     return lib_->getUsingHandsNum();
   }
   planner_->getEntities().put("index", index+1);
+
   return lib_->getUsingHandsNum();
 };
 
@@ -109,22 +141,18 @@ int put(int _inhands, int &_nexttask) {
 int pick(int _inhands, int &_nexttask) {
   lib_->setFCNModel("final"); // set recognition model
 
-  aero::Transform obj_pos;
-  for(int i=0; i<results_buf_.size(); ++i){
-    obj_pos = aero::Translation(results_buf_.at(i));
-    lib_->features_->setMarker(obj_pos, i+5);
-  }
-
   // get position of item
   bool found = lib_->poseAndRecognize("container", "pie", pos_, -0.12);
 
   if (found)
     found = lib_->pickCoffeeFront(pos_, 0.83);
-
   if (!found) {
     planner_->setBackTrack("failed coffee!");
     _nexttask = -404;
   }
+
+  lib_->sendResetPose();
+  
   return lib_->getUsingHandsNum();
 };
 
@@ -174,7 +202,7 @@ int main(int argc, char **argv) {
   negomo_lib::ActionList temps = {};
   negomo_lib::ActionList task0 =
     {std::make_tuple(0, 0, planner_->initTask, planner_->emptyAction, "init"),
-     std::make_tuple(0, 0, containerPose, planner_->emptyAction, "container"),
+     std::make_tuple(0, 1, shelfPose, planner_->emptyAction, "shelf"),
      std::make_tuple(0, 0, planner_->loopStart, planner_->emptyAction, "loop"),
      std::make_tuple(0, 0, watch, planner_->emptyAction, "watch"),
      std::make_tuple(0, 0, planner_->loopEnd, planner_->emptyAction, "loop"),
@@ -182,7 +210,9 @@ int main(int argc, char **argv) {
   negomo_lib::ActionList task1 =
     {std::make_tuple(0, 0, planner_->initTask, planner_->emptyAction, "init"),
      std::make_tuple(0, 0, planner_->loopStart, planner_->emptyAction, "loop"),
+     std::make_tuple(0, 0, containerPose, planner_->emptyAction, "container"),
      std::make_tuple(0, 1, pick, planner_->emptyAction, "pick"),
+     std::make_tuple(0, 1, shelfPose, planner_->emptyAction, "shelf"),
      std::make_tuple(1, 0, put, planner_->emptyAction, "put"),
      std::make_tuple(0, 0, planner_->loopEnd, planner_->emptyAction, "loop"),
      std::make_tuple(0, 0, planner_->finishTask, planner_->emptyAction, "finishTask"),};
@@ -191,7 +221,7 @@ int main(int argc, char **argv) {
   std::vector<negomo_lib::ActionList> tasks = {task0, task1};
 
   // set entity values for each task
-  std::vector<std::vector<std::string> > task_entities = {{"task2","iOff=true", "loopCondition=true"}, {"task1","iOff=true", "loopCondition=true", "index=2"}};
+  std::vector<std::vector<std::string> > task_entities = {{"task2","iOff=false", "loopCondition=true","priority=0"}, {"task1","iOff=false", "loopCondition=true", "index=2"}};
 
   // init planner
   planner_->init(task_entities); // add default entities
