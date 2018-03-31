@@ -13,8 +13,11 @@
 
   <node name="example_interaction_cb" pkg="aero_enshu"
         type="interaction.py" output="screen">
-     <param name="phrase" value="I will hand over this item in a moment."/>
      <param name="time" value="1.0"/>
+     <param name="phrase" value="I will hand over this item in a moment."/>
+     <param name="taskto" value="task2"/>
+     <param name="phrase_refuse" value="I cannot interact at the moment."/>
+     <param name="time_refuse" value="1.0"/>
   </node>
 
   <node name="negomo_sensor_hand" pkg="aero_enshu"
