@@ -236,10 +236,13 @@ def subMouseCbDigits(event, x, y, flags, param):
             if width*db.xs <= x and x <= width*db.xe and height*db.ys <= y and y <= height*db.ye:
                 if db.actionid == 'enter':
                     if digitsboxes_[0].actionid == 'usedhands: ':
+                        print 'viewplan: do not allow'
                         break # do not allow!
+                    print 'viewplan: all is well'
                     input_ += ',' + digitsboxes_[0].actionid[-1]
                     digitsboxes_[0].actionid = 'usedhands: '
                     destroysub_ = True
+                    print 'viewplan: destroy sub in cb is ' + str(destroysub_)
                 elif db.actionid == 'ce':
                     digitsboxes_[0].actionid = digitsboxes_[0].actionid[:-1]
                 elif len(db.actionid) == 1:
@@ -385,7 +388,8 @@ if __name__ == '__main__':
     # q[2].intrpat = 4  
     # q[2].intrpto = 3
 
-    while not rospy.is_shutdown():
+    while True:#not rospy.is_shutdown():
+        print 'viewplan: destroy sub is ' + str(destroysub_)
         # create digits window from ros callback (fails if done in callback)
         if __create_digits__:
             __create_digits__ = False
@@ -393,8 +397,8 @@ if __name__ == '__main__':
 
         # destroy sub windows if any exists
         if destroysub_:
+            print 'viewplan: entered destroy sub!'
             pub.publish(input_)
-            cv2.destroyWindow(subwinname_)
             input_ = ''
             destroysub_ = False
             mouse_active_ = False
