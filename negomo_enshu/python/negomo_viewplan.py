@@ -273,6 +273,12 @@ def createDigits(n):
     cv2.imshow(subwinname_, img)
     input_ = n.actionid
 
+def throughWindow(n):
+    global destroysub_
+    global input_
+    input_ = n.actionid + ',0'
+    destroysub_ = True
+
 def mouseCb(event, x, y, flags, param):
     global subwinname_
     if not mouse_active_:
@@ -287,7 +293,8 @@ def mouseCb(event, x, y, flags, param):
                 for n in q[k].nodes:
                     if n.xs <= x and x <= n.xe and n.ys <= y and y <= n.ye:
                         subwinname_ = q[k].actions[int(n.actionid)]
-                        createDigits(n)
+                        # createDigits(n)
+                        throughWindow(n)
                         break
         qLock.release()
 
