@@ -395,8 +395,8 @@ if __name__ == '__main__':
     # q[2].intrpat = 4  
     # q[2].intrpto = 3
 
-    while True:#not rospy.is_shutdown():
-        print 'viewplan: destroy sub is ' + str(destroysub_)
+    while not rospy.is_shutdown():
+        # print 'viewplan: destroy sub is ' + str(destroysub_)
         # create digits window from ros callback (fails if done in callback)
         if __create_digits__:
             __create_digits__ = False
