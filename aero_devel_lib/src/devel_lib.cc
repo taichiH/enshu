@@ -184,6 +184,7 @@ namespace aero {
     }
 
     std::vector<double> factors = {0.8, 0.8, 0.5};
+    ROS_INFO("> tra size is %d", static_cast<int>(tra_.size()));
     controller_->sendTrajectory(tra_, calcTrajectoryTimes(tra_, factors), aero::ikrange::wholebody);
     controller_->waitInterpolation();
     return true;
@@ -193,11 +194,20 @@ namespace aero {
     std::vector<double> factors;
     factors = {0.5, 0.8};
     aero::trajectory tra_release;
+    ROS_INFO("< tra size is %d", static_cast<int>(tra_.size()));
     tra_release.push_back(tra_.at(1));
     tra_release.push_back(tra_.at(0));
     controller_->sendTrajectory(tra_release, calcTrajectoryTimes(tra_release, factors), aero::ikrange::wholebody);
     controller_->waitInterpolation();
     return true;
+  }
+
+  void DevelLib::sendResetPose() {
+    controller_->setPoseVariables(aero::pose::reset_manip);
+    std::map<aero::joint, double> av;
+    controller_->getRobotStateVariables(av);
+    controller_->sendModelAngles(calcPathTime(av, 0.7));
+    controller_->waitInterpolation();
   }
 
   //////////////////////////////////////////////////////////
@@ -236,7 +246,7 @@ namespace aero {
     controller_->setLifter(0.05, _lifter_z);
     controller_->setJoint(aero::joint::r_shoulder_y, -0.3);
     controller_->setJoint(aero::joint::l_shoulder_y, 0.3);
-    controller_->setJoint(aero::joint::waist_y, -M_PI / 2.0);
+    //controller_->setJoint(aero::joint::waist_y, -M_PI / 2.0);
     controller_->setNeck(0.0, M_PI/ 2.0 ,0.0);
     std::map<aero::joint, double> av;
     controller_->getRobotStateVariables(av);
@@ -468,7 +478,7 @@ namespace aero {
     // solve entry
     aero::trajectory ends, mids, entrys;
     controller_->setRobotStateVariables(reset_pose);
-    if (!controller_->setFromIK(_arm ,aero::ikrange::upperbody, _poses.at(0), _eef)) {
+    if (!controller_->setFromIK(_arm ,aero::ikrange::wholebody, _poses.at(0), _eef)) {
       ROS_WARN("%s: entry ik failed", __FUNCTION__);
       ROS_WARN("pos: x:%f y:%f z:%f", _poses.at(0).translation().x(), _poses.at(0).translation().y(), _poses.at(0).translation().z());
       return false;
@@ -480,7 +490,7 @@ namespace aero {
 
     // solve mid
     controller_->setRobotStateVariables(reset_pose);
-    if (!controller_->setFromIK(_arm ,aero::ikrange::upperbody, _poses.at(1), _eef)) {
+    if (!controller_->setFromIK(_arm ,aero::ikrange::wholebody, _poses.at(1), _eef)) {
       ROS_WARN("%s: mid ik failed", __FUNCTION__);
       ROS_WARN("pos: x:%f y:%f z:%f", _poses.at(1).translation().x(), _poses.at(1).translation().y(), _poses.at(1).translation().z());
       return false;
@@ -492,7 +502,7 @@ namespace aero {
 
     // solve end
     controller_->setRobotStateVariables(reset_pose);
-    if (!controller_->setFromIK(_arm ,aero::ikrange::upperbody, _poses.at(2), _eef)) {
+    if (!controller_->setFromIK(_arm ,aero::ikrange::wholebody, _poses.at(2), _eef)) {
       ROS_WARN("%s: end ik failed", __FUNCTION__);
       ROS_WARN("pos: x:%f y:%f z:%f", _poses.at(2).translation().x(), _poses.at(2).translation().y(), _poses.at(2).translation().z());
       return false;
@@ -504,36 +514,36 @@ namespace aero {
 
     // make iks from another state
     controller_->setRobotStateVariables(ends.at(0));
-    if (controller_->setFromIK(_arm ,aero::ikrange::upperbody, _poses.at(1), _eef)) {
+    if (controller_->setFromIK(_arm ,aero::ikrange::wholebody, _poses.at(1), _eef)) {
       std::map<aero::joint, double> tmp1,tmp2;
       controller_->getRobotStateVariables(tmp1);
       mids.push_back(tmp1);
-      if (controller_->setFromIK(_arm ,aero::ikrange::upperbody, _poses.at(0), _eef)) {
+      if (controller_->setFromIK(_arm ,aero::ikrange::wholebody, _poses.at(0), _eef)) {
         controller_->getRobotStateVariables(tmp2);
         entrys.push_back(tmp2);
       }
     }
 
     controller_->setRobotStateVariables(entrys.at(0));
-    if (controller_->setFromIK(_arm ,aero::ikrange::upperbody, _poses.at(1), _eef)) {
+    if (controller_->setFromIK(_arm ,aero::ikrange::wholebody, _poses.at(1), _eef)) {
       std::map<aero::joint, double> tmp1,tmp2;
       controller_->getRobotStateVariables(tmp1);
       mids.push_back(tmp1);
-      if (controller_->setFromIK(_arm ,aero::ikrange::upperbody, _poses.at(2), _eef)) {
+      if (controller_->setFromIK(_arm ,aero::ikrange::wholebody, _poses.at(2), _eef)) {
         controller_->getRobotStateVariables(tmp2);
         ends.push_back(tmp2);
       }
     }
 
     controller_->setRobotStateVariables(mids.at(0));
-    if (controller_->setFromIK(_arm ,aero::ikrange::upperbody, _poses.at(0), _eef)) {
+    if (controller_->setFromIK(_arm ,aero::ikrange::wholebody, _poses.at(0), _eef)) {
       std::map<aero::joint, double> tmp;
       controller_->getRobotStateVariables(tmp);
       entrys.push_back(tmp);
     }
 
     controller_->setRobotStateVariables(mids.at(0));
-    if (controller_->setFromIK(_arm ,aero::ikrange::upperbody, _poses.at(2), _eef)) {
+    if (controller_->setFromIK(_arm ,aero::ikrange::wholebody, _poses.at(2), _eef)) {
       std::map<aero::joint, double> tmp;
       controller_->getRobotStateVariables(tmp);
       ends.push_back(tmp);
