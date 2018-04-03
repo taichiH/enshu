@@ -21,9 +21,6 @@ roscore
 ```
 roslaunch aero_startup aero_bringup.launch
 ```
-```
-rosrun aero_std look_at
-```
 
 Run on GPU machine:
 ```

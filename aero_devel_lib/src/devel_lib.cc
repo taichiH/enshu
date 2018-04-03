@@ -6,6 +6,9 @@ namespace aero {
   DevelLib::DevelLib(ros::NodeHandle _nh, aero::interface::AeroMoveitInterface::Ptr _controller, Eigen::Vector3d _cam_pos, Eigen::Quaterniond _cam_qua)
     : nh_(_nh), controller_(_controller)
   {
+    usleep(1000 * 1000);
+    controller_->setPoseVariables(aero::pose::reset);
+    controller_->sendModelAngles(2000);
     controller_->setRobotStateToCurrentState();
     features_.reset(new aero::vision::ObjectFeatures(nh_, controller_));
     features_->setCameraTransform("head_base_link", _cam_pos, _cam_qua);
@@ -13,7 +16,6 @@ namespace aero {
     hand_sub_ = nh_.subscribe("/hand_detector/boxes", 1, &DevelLib::handCallback_, this);
     fcn_starter_ = nh_.serviceClient<std_srvs::SetBool>("/object_detector/set_mode");
     speak_pub_ = nh_.advertise<std_msgs::String>("/windows/voice", 10);
-    usleep(1000 * 1000);
   }
 
   //////////////////////////////////////////////////////////
@@ -259,7 +261,7 @@ namespace aero {
     controller_->setPoseVariables(aero::pose::reset_manip);
     controller_->setLifter(0.0, -0.1);
     controller_->setJoint(aero::joint::r_shoulder_y, -0.3);
-    controller_->setJoint(aero::joint::l_shoulder_y, -0.1);
+    controller_->setJoint(aero::joint::l_shoulder_y, 0.3);
     controller_->setNeck(0.0,M_PI/2.0,0.0);
     std::map<aero::joint, double> av;
     controller_->getRobotStateVariables(av);
@@ -464,7 +466,7 @@ namespace aero {
   }
 
   //////////////////////////////////////////////////////////
-  bool DevelLib::fastestTrajectory3(const aero::arm _arm, const std::vector<aero::Transform> _poses, const aero::eef _eef, const Eigen::Vector3d _des_pos, aero::trajectory& _tra) {
+  bool DevelLib::fastestTrajectory3(const aero::arm _arm, const std::vector<aero::Transform> _poses, const aero::eef _eef, const Eigen::Vector3d _des_pos, aero::trajectory& _tra, bool _lock_lifter) {
     // check poses length
     if (static_cast<int>(_poses.size()) != 3) {
       ROS_WARN("%s: poses legnth must be three! now %d", __FUNCTION__, static_cast<int>(_poses.size()));
@@ -475,17 +477,16 @@ namespace aero {
     controller_->setPoseVariables(aero::pose::reset_manip);
     controller_->getRobotStateVariables(reset_pose);
 
+    std::map<aero::joint, double> end, mid, entry;
+
     // solve entry
-    aero::trajectory ends, mids, entrys;
     controller_->setRobotStateVariables(reset_pose);
     if (!controller_->setFromIK(_arm ,aero::ikrange::wholebody, _poses.at(0), _eef)) {
       ROS_WARN("%s: entry ik failed", __FUNCTION__);
       ROS_WARN("pos: x:%f y:%f z:%f", _poses.at(0).translation().x(), _poses.at(0).translation().y(), _poses.at(0).translation().z());
       return false;
     } else {
-      std::map<aero::joint, double> tmp;
-      controller_->getRobotStateVariables(tmp);
-      entrys.push_back(tmp);
+      controller_->getRobotStateVariables(entry);
     }
 
     // solve mid
@@ -495,9 +496,7 @@ namespace aero {
       ROS_WARN("pos: x:%f y:%f z:%f", _poses.at(1).translation().x(), _poses.at(1).translation().y(), _poses.at(1).translation().z());
       return false;
     } else {
-      std::map<aero::joint, double> tmp;
-      controller_->getRobotStateVariables(tmp);
-      mids.push_back(tmp);
+      controller_->getRobotStateVariables(mid);
     }
 
     // solve end
@@ -507,62 +506,89 @@ namespace aero {
       ROS_WARN("pos: x:%f y:%f z:%f", _poses.at(2).translation().x(), _poses.at(2).translation().y(), _poses.at(2).translation().z());
       return false;
     } else {
-      std::map<aero::joint, double> tmp;
-      controller_->getRobotStateVariables(tmp);
-      ends.push_back(tmp);
+      controller_->getRobotStateVariables(end);
     }
+
+    aero::trajectory ends, mids, entrys;
 
     // make iks from another state
-    controller_->setRobotStateVariables(ends.at(0));
-    if (controller_->setFromIK(_arm ,aero::ikrange::wholebody, _poses.at(1), _eef)) {
-      std::map<aero::joint, double> tmp1,tmp2;
+    bool has_solution = false;
+    std::map<aero::joint, double> tmp1,tmp2;
+    controller_->setRobotStateVariables(end);
+    if (controller_->setFromIK(_arm ,aero::ikrange::upperbody, _poses.at(1), _eef)) {
       controller_->getRobotStateVariables(tmp1);
-      mids.push_back(tmp1);
-      if (controller_->setFromIK(_arm ,aero::ikrange::wholebody, _poses.at(0), _eef)) {
+      if (controller_->setFromIK(_arm ,aero::ikrange::upperbody, _poses.at(0), _eef)) {
         controller_->getRobotStateVariables(tmp2);
-        entrys.push_back(tmp2);
+        has_solution = true;
       }
     }
-
-    controller_->setRobotStateVariables(entrys.at(0));
-    if (controller_->setFromIK(_arm ,aero::ikrange::wholebody, _poses.at(1), _eef)) {
-      std::map<aero::joint, double> tmp1,tmp2;
-      controller_->getRobotStateVariables(tmp1);
+    if (has_solution) {
+      entrys.push_back(tmp2);
       mids.push_back(tmp1);
-      if (controller_->setFromIK(_arm ,aero::ikrange::wholebody, _poses.at(2), _eef)) {
+      ends.push_back(end);
+    }
+
+    has_solution = false;
+    controller_->setRobotStateVariables(entry);
+    if (controller_->setFromIK(_arm ,aero::ikrange::upperbody, _poses.at(1), _eef)) {
+      controller_->getRobotStateVariables(tmp1);
+      if (controller_->setFromIK(_arm ,aero::ikrange::upperbody, _poses.at(2), _eef)) {
         controller_->getRobotStateVariables(tmp2);
-        ends.push_back(tmp2);
+        has_solution = true;
       }
     }
-
-    controller_->setRobotStateVariables(mids.at(0));
-    if (controller_->setFromIK(_arm ,aero::ikrange::wholebody, _poses.at(0), _eef)) {
-      std::map<aero::joint, double> tmp;
-      controller_->getRobotStateVariables(tmp);
-      entrys.push_back(tmp);
+    if (has_solution) {
+      entrys.push_back(entry);
+      mids.push_back(tmp1);
+      ends.push_back(tmp2);
     }
 
-    controller_->setRobotStateVariables(mids.at(0));
-    if (controller_->setFromIK(_arm ,aero::ikrange::wholebody, _poses.at(2), _eef)) {
-      std::map<aero::joint, double> tmp;
-      controller_->getRobotStateVariables(tmp);
-      ends.push_back(tmp);
+    has_solution = false;
+    controller_->setRobotStateVariables(mid);
+    if (controller_->setFromIK(_arm ,aero::ikrange::upperbody, _poses.at(0), _eef)) {
+      controller_->getRobotStateVariables(tmp1);
+      controller_->setRobotStateVariables(mid);
+      if (controller_->setFromIK(_arm ,aero::ikrange::upperbody, _poses.at(2), _eef)) {
+        controller_->getRobotStateVariables(tmp2);
+        has_solution = true;
+      }
+    }
+    if (has_solution) {
+      entrys.push_back(tmp1);
+      mids.push_back(mid);
+      ends.push_back(tmp2);
+    }
+
+    if (entrys.size() == 0) {
+      ROS_WARN("%s: could not solve for any of the actions", __FUNCTION__);
+      return false;
     }
 
     // search fastest path
     double time_factor = 0.5;
     int min_time = std::numeric_limits<int>::max();
     std::vector<int> indices;
-    for (int i = 0; i < static_cast<int>(entrys.size()); ++i)
-      for (int j = 0; j < static_cast<int>(mids.size()); ++j)
-        for (int k = 0; k < static_cast<int>(ends.size()); ++k) {
-          int time = calcPathTime(entrys.at(i), mids.at(j), time_factor);
-          time += calcPathTime(mids.at(j), ends.at(k), time_factor);
-          if (time < min_time) {
-            min_time = time;
-            indices = {i, j, k};
-          }
+    if (_lock_lifter) {
+      for (int i = 0; i < static_cast<int>(entrys.size()); ++i) {
+        int time = calcPathTime(entrys.at(i), mids.at(i), time_factor)
+          + calcPathTime(mids.at(i), ends.at(i), time_factor);
+        if (time < min_time) {
+          min_time = time;
+          indices = {i, i, i};
         }
+      }
+    } else {
+      for (int i = 0; i < static_cast<int>(entrys.size()); ++i)
+        for (int j = 0; j < static_cast<int>(mids.size()); ++j)
+          for (int k = 0; k < static_cast<int>(ends.size()); ++k) {
+            int time = calcPathTime(entrys.at(i), mids.at(j), time_factor)
+              + calcPathTime(mids.at(j), ends.at(k), time_factor);
+            if (time < min_time) {
+              min_time = time;
+              indices = {i, j, k};
+            }
+          }
+    }
 
     // return
     _tra.clear();
