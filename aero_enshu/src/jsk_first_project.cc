@@ -11,7 +11,9 @@ aero::DevelLibPtr lib_; // development library
 negomo_lib::NegomoBridge2Ptr planner_; // planner
 Eigen::Vector3d pos_;
 std::vector<Eigen::Vector3d> results_buf_;
+std::vector<std::vector<Eigen::Vector3d>> interaction_buf_;
 std::map<std::string, std::function<void(int)> > pre_;
+int interaction_index_ = 0;
 int index_;
 
 // when entering error
@@ -48,48 +50,68 @@ void visualizeMarker(){
 }
 
 int watchInteraction(int _inhands, int &_nexttask) {
-  if(index_ > 1)
+  if(interaction_index_ > 0){
+    ROS_INFO("watch interaction");
+    ROS_INFO("index_: %d", index_);
+    std::vector<Eigen::Vector3d> tmp_vec;
+    for(int i=0; i<(index_ - 1); ++i){
+      tmp_vec.push_back(results_buf_.at(i));
+    }
+    interaction_buf_.push_back(tmp_vec);
+    auto last_pos = tmp_vec.back();
     results_buf_.clear();
+    results_buf_.push_back(last_pos);
+  }
+  ++interaction_index_;
   return _inhands;
 }
 
 int watch(int _inhands, int &_nexttask) {
-  lib_->setFCNModel("final"); // set recognition model
-  std::vector<aero_recognition_msgs::Scored2DBox> hand_recognition_result
-    = lib_->recognizeHand();
+  lib_->setFCNModel("final");
+  std::vector<aero_recognition_msgs::Scored2DBox>
+    hand_recognition_result = lib_->recognizeHand();
+
   std::vector<Eigen::Vector3d> results;
   bool found = lib_->findItem("pie", results);
-  ROS_INFO("finished");
 
-  if(!hand_recognition_result.empty()){
-    ROS_INFO("hand detect!");
-    return _inhands;
-  }
+  const double diff_min = 0.07;
 
-  if(!found){
-    ROS_INFO("object not found");
-    return _inhands;
-  }
-
-  const double diff_min = 0.08;
-
-  if(index_ > 1){
-    ROS_INFO("index > 1");
-  } else {
-    if(results_buf_.empty()){
-      results_buf_.push_back(results.at(0));
-      return _inhands;
-    }
-    for(int i=0; i<results.size(); ++i){
-      Eigen::Vector3d diff = results.at(i) - results_buf_.at(0);
-      if(diff.norm() > diff_min){
-        results_buf_.push_back(results.at(i));
-        for(int j=2; j<MAX; ++j){
-          results_buf_.push_back(results_buf_.at(j-1) + diff);
+  // not first time
+  if(!interaction_buf_.empty()){
+    std::vector<Eigen::Vector3d> last_results_buf = interaction_buf_.back();
+    for(int i=0; i<last_results_buf.size(); ++i){
+      for(int j=0; j<results.size(); ++j){
+        Eigen::Vector3d diff = last_results_buf.at(i) - results.at(j);
+        if(diff.norm() < diff_min){
+          ROS_INFO("find new item");
+          results.erase(results.begin() + (j - 1));
         }
-        planner_->getEntities().put("loopCondition", false);
-        break;
       }
+    }
+  }
+
+  if(!hand_recognition_result.empty())
+    return _inhands;
+
+  if(!found || results.empty())
+    return _inhands;
+
+  if(results_buf_.empty()){
+    results_buf_.push_back(results.at(0));
+    return _inhands;
+  }
+
+  for(int i=0; i<results.size(); ++i){
+    ROS_INFO("create put plan");
+    Eigen::Vector3d diff = results.at(i) - results_buf_.at(0);
+    if(diff.norm() > diff_min){
+      results_buf_.push_back(results.at(i));
+      for(int j=2; j<MAX; ++j){
+        results_buf_.push_back(results_buf_.at(j-1) + diff);
+      }
+      ROS_INFO("done put planning");
+      planner_->getEntities().put("loopCondition", false);
+      break;
     }
   }
   visualizeMarker();
