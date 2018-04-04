@@ -20,8 +20,8 @@
      <param name="time_refuse" value="1.0"/>
   </node>
 
-  <node name="negomo_sensor_hand" pkg="aero_enshu"
-        type="detect_hand" output="screen"/>
+  <!--node name="negomo_sensor_hand" pkg="aero_enshu"
+        type="detect_hand" output="screen"/-->
 
   <node name="negomo" pkg="negomo_enshu"
         type="negotiation_model">
