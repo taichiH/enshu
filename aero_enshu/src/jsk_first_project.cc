@@ -2,7 +2,7 @@
   In this demo, a robot will pick up a caffelatte
   or enter an error recovery mode when nothing is found.
 */
-#define MAX 5
+#define MAX 4
 #include "negomo/NegomoLib2.hh"
 #include "aero_devel_lib/devel_lib.hh"
 
@@ -14,7 +14,7 @@ std::vector<Eigen::Vector3d> results_buf_;
 std::vector<std::vector<Eigen::Vector3d>> interaction_buf_;
 std::map<std::string, std::function<void(int)> > pre_;
 int interaction_index_ = 0;
-int index_;
+int index_ = 2;
 
 // when entering error
 int error(int _inhands, int &_nexttask) {
@@ -50,6 +50,7 @@ void visualizeMarker(){
 }
 
 int watchInteraction(int _inhands, int &_nexttask) {
+  ROS_INFO("watchInteraction start: %d", results_buf_.size());
   if(interaction_index_ > 0){
     ROS_INFO("watch interaction");
     ROS_INFO("index_: %d", index_);
@@ -59,7 +60,9 @@ int watchInteraction(int _inhands, int &_nexttask) {
     }
     interaction_buf_.push_back(tmp_vec);
     auto last_pos = tmp_vec.back();
+    ROS_INFO("before clear: %d", results_buf_.size());
     results_buf_.clear();
+    ROS_INFO("after clear: %d", results_buf_.size());
     results_buf_.push_back(last_pos);
   }
   ++interaction_index_;
@@ -67,6 +70,7 @@ int watchInteraction(int _inhands, int &_nexttask) {
 }
 
 int watch(int _inhands, int &_nexttask) {
+  ROS_INFO("watch start: %d", results_buf_.size());
   lib_->setFCNModel("final");
   std::vector<aero_recognition_msgs::Scored2DBox>
     hand_recognition_result = lib_->recognizeHand();
@@ -82,9 +86,10 @@ int watch(int _inhands, int &_nexttask) {
     for(int i=0; i<last_results_buf.size(); ++i){
       for(int j=0; j<results.size(); ++j){
         Eigen::Vector3d diff = last_results_buf.at(i) - results.at(j);
+        ROS_INFO("last_results_buf.size(): %d, diff.norm(): %f", last_results_buf.size(), diff.norm());
         if(diff.norm() < diff_min){
           ROS_INFO("find new item");
-          results.erase(results.begin() + (j - 1));
+          results.erase(results.begin() + j);
         }
       }
     }
@@ -104,6 +109,7 @@ int watch(int _inhands, int &_nexttask) {
   for(int i=0; i<results.size(); ++i){
     ROS_INFO("create put plan");
     Eigen::Vector3d diff = results.at(i) - results_buf_.at(0);
+    ROS_INFO("results.at(i): %f, results_buf_.at(0): %f, diff.norm(): %f", results.at(i).x(), results_buf_.at(0).x(), diff.norm());
     if(diff.norm() > diff_min){
       results_buf_.push_back(results.at(i));
       for(int j=2; j<MAX; ++j){
@@ -119,7 +125,7 @@ int watch(int _inhands, int &_nexttask) {
 };
 
 int put(int _inhands, int &_nexttask) {
-  index_ = planner_->getEntities().get<int>("index", 2);
+  ROS_INFO("put start: %d", results_buf_.size());
   Eigen::Vector3d shelf_initial(results_buf_.at(index_).x(), results_buf_.at(index_).y(), results_buf_.at(index_).z());
 
   aero::Transform obj_pos;
@@ -162,7 +168,7 @@ int put(int _inhands, int &_nexttask) {
     planner_->getEntities().put("loopCondition", false);
     return lib_->getUsingHandsNum();
   }
-  planner_->getEntities().put("index", index_+1);
+  ++index_;
   return lib_->getUsingHandsNum();
 };
 
