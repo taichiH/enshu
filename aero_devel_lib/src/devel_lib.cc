@@ -157,10 +157,10 @@ namespace aero {
     controller_->resetLookAt();
     std::map<aero::joint, double> av;
     controller_->getRobotStateVariables(av);
-    controller_->sendModelAngles(calcPathTime(av, 0.7));
+    controller_->sendModelAngles(calcPathTime(av, 0.8));
     controller_->waitInterpolation();
 
-    double factor = 0.7;
+    double factor = 0.8;
 
     // make trajectory
     bool res; aero::trajectory tra;
@@ -176,8 +176,9 @@ namespace aero {
       controller_->goPos(0.0, _offset_y, 0.0);
     }
 
-    std::vector<double> factors = {0.8, 0.8, 0.5};
+    std::vector<double> factors = {0.8, 0.8, 0.8};
     controller_->sendTrajectory(tra, calcTrajectoryTimes(tra, factors), aero::ikrange::wholebody);
+    controller_->waitInterpolation();
 
     openHand(_arm);
 
@@ -187,6 +188,7 @@ namespace aero {
     tra_release.push_back(tra.at(1));
     tra_release.push_back(tra.at(0));
     controller_->sendTrajectory(tra_release, calcTrajectoryTimes(tra_release, factors), aero::ikrange::wholebody);
+    controller_->waitInterpolation();
 
     return true;
   }
@@ -507,7 +509,7 @@ namespace aero {
     }
 
     // search fastest path
-    double time_factor = 0.5;
+    double time_factor = 0.8;
     int min_time = std::numeric_limits<int>::max();
     std::vector<int> indices;
     if (_lock_lifter) {

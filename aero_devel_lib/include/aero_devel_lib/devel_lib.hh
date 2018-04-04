@@ -32,7 +32,7 @@ namespace aero {
 
     // grasp coffee
 
-  public: bool pickCoffeeFront(Eigen::Vector3d _pos, float _container_height=0.80, aero::arm _arm=aero::arm::rarm, Eigen::Vector3d _offset=Eigen::Vector3d(0.0, -0.015, 0.0));
+  public: bool pickCoffeeFront(Eigen::Vector3d _pos, float _container_height=0.80, aero::arm _arm=aero::arm::rarm, Eigen::Vector3d _offset=Eigen::Vector3d(0.0, -0.03, 0.0));
 
   public: bool graspCoffee();
 
@@ -100,9 +100,9 @@ namespace aero {
 
   private: aero::interface::AeroMoveitInterface::Ptr controller_;
 
-  private: aero::vision::ObjectFeaturesPtr features_;
+  public: aero::vision::ObjectFeaturesPtr features_;
 
-  private: aero_recognition_msgs::LabeledPoseArray fcn_msg_;
+  public: aero_recognition_msgs::LabeledPoseArray fcn_msg_;
 
   private: bool using_rarm_ = false;
 
