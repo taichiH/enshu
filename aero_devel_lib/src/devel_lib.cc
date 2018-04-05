@@ -42,7 +42,7 @@ namespace aero {
   //////////////////////////////////////////////////////////
   bool DevelLib::makeTopGrasp(const aero::arm _arm, const Eigen::Vector3d _pos, aero::trajectory& _tra) {
     // diffs
-    Eigen::Vector3d end_diff, mid_diff, mid_diff2, mid_diff3, entry_diff, offset;
+    Eigen::Vector3d end_diff, mid_diff, entry_diff, offset;
     end_diff = {0.0 ,0.0, -0.04};
     mid_diff = {-0.0,0.0,0.1};
     entry_diff = {-0.1,0.0,0.15};
@@ -70,10 +70,10 @@ namespace aero {
     entry_pose = aero::Translation(_pos + offset + entry_diff) * entry_qua;
     features_->setMarker(entry_pose, 1);
     features_->setMarker(mid_pose, 2);
-    features_->setMarker(mid_pose, 3);
+    features_->setMarker(end_pose, 3);
     ROS_WARN("entry: x:%f y:%f z:%f", entry_pose.translation().x(), entry_pose.translation().y(), entry_pose.translation().z());
     ROS_WARN("mid  : x:%f y:%f z:%f", mid_pose.translation().x(), mid_pose.translation().y(), mid_pose.translation().z());
-    ROS_WARN("mid  : x:%f y:%f z:%f", end_pose.translation().x(), end_pose.translation().y(), end_pose.translation().z());
+    ROS_WARN("end  : x:%f y:%f z:%f", end_pose.translation().x(), end_pose.translation().y(), end_pose.translation().z());
 
     aero::trajectory tra;
     bool res = fastestTrajectory3(_arm, {entry_pose, mid_pose, end_pose}, aero::eef::pick, tra);
@@ -513,7 +513,7 @@ namespace aero {
     int min_time = std::numeric_limits<int>::max();
     int index = 0;
     if (_lock_lifter) {
-      for (int i = 0; i < static_cast<int>(trajs_per_pose.begin()->size()); ++i) {
+      for (int i = 0; i < static_cast<int>(trajs_per_pose.size()); ++i) {
         int time = 0;
         auto traj = trajs_per_pose.at(i);
         for (auto pose = traj.begin() + 1; pose != traj.end(); ++pose)
