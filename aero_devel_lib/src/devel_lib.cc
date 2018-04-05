@@ -75,15 +75,8 @@ namespace aero {
     ROS_WARN("mid  : x:%f y:%f z:%f", mid_pose.translation().x(), mid_pose.translation().y(), mid_pose.translation().z());
     ROS_WARN("mid  : x:%f y:%f z:%f", end_pose.translation().x(), end_pose.translation().y(), end_pose.translation().z());
 
-    // desired hand position from waist
-    Eigen::Vector3d des_pos = {0.6, 0.2, 0.1};
-    if (end_pose.translation().x() > 0.75)
-      des_pos = {0.6, 0.2, end_pose.translation().z() - 0.9 + 0.15}; // dirty
-    if (_arm == aero::arm::rarm)
-      des_pos.y() = -0.2;
-
     aero::trajectory tra;
-    bool res = fastestTrajectory3(_arm, {entry_pose, mid_pose, end_pose}, aero::eef::pick, des_pos, tra);
+    bool res = fastestTrajectory3(_arm, {entry_pose, mid_pose, end_pose}, aero::eef::pick, tra);
     if (!res) {
       ROS_INFO("%s: ik failed", __FUNCTION__);
       return false;
@@ -112,8 +105,7 @@ namespace aero {
     }
 
     // reach
-    std::vector<double> factors = {0.8, 0.8, 0.5};
-    controller_->sendTrajectory(tra, calcTrajectoryTimes(tra, factors), aero::ikrange::wholebody);
+    controller_->sendTrajectory(tra, calcTrajectoryTimes(tra, factor), aero::ikrange::wholebody);
     controller_->waitInterpolation();
 
     // grasp
@@ -166,10 +158,10 @@ namespace aero {
     controller_->resetLookAt();
     std::map<aero::joint, double> av;
     controller_->getRobotStateVariables(av);
-    controller_->sendModelAngles(calcPathTime(av, 0.7));
+    controller_->sendModelAngles(calcPathTime(av, 0.8));
     controller_->waitInterpolation();
 
-    double factor = 0.7;
+    double factor = 0.8;
 
     tra_.clear();
     // make trajectory
@@ -267,7 +259,7 @@ namespace aero {
     controller_->getRobotStateVariables(av);
     controller_->sendModelAngles(std::max(calcPathTime(av, 0.8), 1000), aero::ikrange::wholebody);
     controller_->waitInterpolation();
- }
+  }
 
   //////////////////////////////////////////////////////////
   void DevelLib::startFCN() {
@@ -466,136 +458,79 @@ namespace aero {
   }
 
   //////////////////////////////////////////////////////////
-  bool DevelLib::fastestTrajectory3(const aero::arm _arm, const std::vector<aero::Transform> _poses, const aero::eef _eef, const Eigen::Vector3d _des_pos, aero::trajectory& _tra, bool _lock_lifter) {
-    // check poses length
-    if (static_cast<int>(_poses.size()) != 3) {
-      ROS_WARN("%s: poses legnth must be three! now %d", __FUNCTION__, static_cast<int>(_poses.size()));
-      return false;
-    }
-
+  bool DevelLib::fastestTrajectory3(const aero::arm _arm, const std::vector<aero::Transform> _poses, const aero::eef _eef, aero::trajectory& _tra, bool _lock_lifter) {
     std::map<aero::joint, double> reset_pose;
     controller_->setPoseVariables(aero::pose::reset_manip);
     controller_->getRobotStateVariables(reset_pose);
 
     std::map<aero::joint, double> end, mid, entry;
 
-    // solve entry
-    controller_->setRobotStateVariables(reset_pose);
-    if (!controller_->setFromIK(_arm ,aero::ikrange::wholebody, _poses.at(0), _eef)) {
-      ROS_WARN("%s: entry ik failed", __FUNCTION__);
-      ROS_WARN("pos: x:%f y:%f z:%f", _poses.at(0).translation().x(), _poses.at(0).translation().y(), _poses.at(0).translation().z());
-      return false;
-    } else {
-      controller_->getRobotStateVariables(entry);
+    std::vector<std::map<aero::joint, double> > poses;
+    // solve all poses
+    for (auto ee = _poses.begin(); ee != _poses.end(); ++ee) {
+      controller_->setRobotStateVariables(reset_pose);
+      if (!controller_->setFromIK(_arm ,aero::ikrange::wholebody, *ee, _eef)) {
+        ROS_WARN("%s: ik %d failed", __FUNCTION__, static_cast<int>(ee - _poses.begin()));
+        ROS_WARN("pos: x:%f y:%f z:%f", ee->translation().x(), ee->translation().y(), ee->translation().z());
+        return false;
+      } else {
+        std::map<aero::joint, double> pose;
+        controller_->getRobotStateVariables(pose);
+        poses.push_back(pose);
+      }
     }
-
-    // solve mid
-    controller_->setRobotStateVariables(reset_pose);
-    if (!controller_->setFromIK(_arm ,aero::ikrange::wholebody, _poses.at(1), _eef)) {
-      ROS_WARN("%s: mid ik failed", __FUNCTION__);
-      ROS_WARN("pos: x:%f y:%f z:%f", _poses.at(1).translation().x(), _poses.at(1).translation().y(), _poses.at(1).translation().z());
-      return false;
-    } else {
-      controller_->getRobotStateVariables(mid);
-    }
-
-    // solve end
-    controller_->setRobotStateVariables(reset_pose);
-    if (!controller_->setFromIK(_arm ,aero::ikrange::wholebody, _poses.at(2), _eef)) {
-      ROS_WARN("%s: end ik failed", __FUNCTION__);
-      ROS_WARN("pos: x:%f y:%f z:%f", _poses.at(2).translation().x(), _poses.at(2).translation().y(), _poses.at(2).translation().z());
-      return false;
-    } else {
-      controller_->getRobotStateVariables(end);
-    }
-
-    aero::trajectory ends, mids, entrys;
 
     // make iks from another state
-    bool has_solution = false;
-    std::map<aero::joint, double> tmp1,tmp2;
-    controller_->setRobotStateVariables(end);
-    if (controller_->setFromIK(_arm ,aero::ikrange::upperbody, _poses.at(1), _eef)) {
-      controller_->getRobotStateVariables(tmp1);
-      if (controller_->setFromIK(_arm ,aero::ikrange::upperbody, _poses.at(0), _eef)) {
-        controller_->getRobotStateVariables(tmp2);
-        has_solution = true;
+    std::vector<aero::trajectory> trajs_per_pose;
+    for (auto ref_pose = poses.begin(); ref_pose != poses.end(); ++ref_pose) {
+      bool has_solution = true;
+      aero::trajectory tmpv(poses.size());
+      auto tmp = tmpv.begin();
+      controller_->setRobotStateVariables(*ref_pose);
+      int j = static_cast<int>(ref_pose - poses.begin());
+      for (int i = 0; i < _poses.size(); ++i) {
+        auto ee = _poses.begin() + i;
+        if (i != j)
+          if (!controller_->setFromIK(_arm, aero::ikrange::upperbody, *ee, _eef)) {
+            has_solution = false;
+            break;
+          }
+        controller_->getRobotStateVariables(*tmp);
+        controller_->setRobotStateVariables(*ref_pose);
+        ++tmp;
       }
-    }
-    if (has_solution) {
-      entrys.push_back(tmp2);
-      mids.push_back(tmp1);
-      ends.push_back(end);
+      if (has_solution)
+        trajs_per_pose.push_back(tmpv);
     }
 
-    has_solution = false;
-    controller_->setRobotStateVariables(entry);
-    if (controller_->setFromIK(_arm ,aero::ikrange::upperbody, _poses.at(1), _eef)) {
-      controller_->getRobotStateVariables(tmp1);
-      if (controller_->setFromIK(_arm ,aero::ikrange::upperbody, _poses.at(2), _eef)) {
-        controller_->getRobotStateVariables(tmp2);
-        has_solution = true;
-      }
-    }
-    if (has_solution) {
-      entrys.push_back(entry);
-      mids.push_back(tmp1);
-      ends.push_back(tmp2);
-    }
-
-    has_solution = false;
-    controller_->setRobotStateVariables(mid);
-    if (controller_->setFromIK(_arm ,aero::ikrange::upperbody, _poses.at(0), _eef)) {
-      controller_->getRobotStateVariables(tmp1);
-      controller_->setRobotStateVariables(mid);
-      if (controller_->setFromIK(_arm ,aero::ikrange::upperbody, _poses.at(2), _eef)) {
-        controller_->getRobotStateVariables(tmp2);
-        has_solution = true;
-      }
-    }
-    if (has_solution) {
-      entrys.push_back(tmp1);
-      mids.push_back(mid);
-      ends.push_back(tmp2);
-    }
-
-    if (entrys.size() == 0) {
+    if (trajs_per_pose.size() == 0) {
       ROS_WARN("%s: could not solve for any of the actions", __FUNCTION__);
       return false;
     }
 
     // search fastest path
-    double time_factor = 0.5;
+    double time_factor = 0.8;
     int min_time = std::numeric_limits<int>::max();
-    std::vector<int> indices;
+    int index = 0;
     if (_lock_lifter) {
-      for (int i = 0; i < static_cast<int>(entrys.size()); ++i) {
-        int time = calcPathTime(entrys.at(i), mids.at(i), time_factor)
-          + calcPathTime(mids.at(i), ends.at(i), time_factor);
+      for (int i = 0; i < static_cast<int>(trajs_per_pose.begin()->size()); ++i) {
+        int time = 0;
+        auto traj = trajs_per_pose.at(i);
+        for (auto pose = traj.begin() + 1; pose != traj.end(); ++pose)
+          time += calcPathTime(*(pose - 1), *pose, time_factor);
         if (time < min_time) {
           min_time = time;
-          indices = {i, i, i};
+          index = i;
         }
       }
     } else {
-      for (int i = 0; i < static_cast<int>(entrys.size()); ++i)
-        for (int j = 0; j < static_cast<int>(mids.size()); ++j)
-          for (int k = 0; k < static_cast<int>(ends.size()); ++k) {
-            int time = calcPathTime(entrys.at(i), mids.at(j), time_factor)
-              + calcPathTime(mids.at(j), ends.at(k), time_factor);
-            if (time < min_time) {
-              min_time = time;
-              indices = {i, j, k};
-            }
-          }
+      // TODO
+      return false;
     }
 
     // return
     _tra.clear();
-    _tra.reserve(3);
-    _tra.push_back(entrys.at(indices.at(0)));
-    _tra.push_back(mids.at(indices.at(1)));
-    _tra.push_back(ends.at(indices.at(2)));
+    _tra.assign(trajs_per_pose.at(index).begin(), trajs_per_pose.at(index).end());
 
     return true;
   }
@@ -654,6 +589,7 @@ namespace aero {
         result.push_back(calcPathTime(*(it-1), *it, _factor));
       }
     }
+
     return result;
   }
 

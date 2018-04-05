@@ -92,7 +92,7 @@ namespace aero {
 
   public: Eigen::Quaterniond getRotationQuaternion(std::string _axis, double _radian);
 
-  public: bool fastestTrajectory3(const aero::arm _arm, const std::vector<aero::Transform> _poses, const aero::eef _eef, const Eigen::Vector3d _des_pos, aero::trajectory& _tra, bool _lock_lifter=true);
+  public: bool fastestTrajectory3(const aero::arm _arm, const std::vector<aero::Transform> _poses, const aero::eef _eef, aero::trajectory& _tra, bool _lock_lifter=true);
 
   public: int calcPathTime(std::map<aero::joint, double> _av_from, std::map<aero::joint, double> _av_to, double _factor=0.5);
 
@@ -122,7 +122,7 @@ namespace aero {
 
   public: aero::vision::ObjectFeaturesPtr features_;
 
-  private: aero_recognition_msgs::LabeledPoseArray fcn_msg_;
+  public: aero_recognition_msgs::LabeledPoseArray fcn_msg_;
 
   private: aero_recognition_msgs::Scored2DBoxArray hand_msg_;
 
