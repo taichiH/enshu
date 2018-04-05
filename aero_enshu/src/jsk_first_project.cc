@@ -60,9 +60,7 @@ int watchInteraction(int _inhands, int &_nexttask) {
     }
     interaction_buf_.push_back(tmp_vec);
     auto last_pos = tmp_vec.back();
-    ROS_INFO("before clear: %d", results_buf_.size());
     results_buf_.clear();
-    ROS_INFO("after clear: %d", results_buf_.size());
     results_buf_.push_back(last_pos);
   }
   ++interaction_index_;
@@ -78,7 +76,7 @@ int watch(int _inhands, int &_nexttask) {
   std::vector<Eigen::Vector3d> results;
   bool found = lib_->findItem("pie", results);
 
-  const double diff_min = 0.07;
+  const double diff_min = 0.09;
 
   // not first time
   if(!interaction_buf_.empty()){
@@ -86,9 +84,10 @@ int watch(int _inhands, int &_nexttask) {
     for(int i=0; i<last_results_buf.size(); ++i){
       for(int j=0; j<results.size(); ++j){
         Eigen::Vector3d diff = last_results_buf.at(i) - results.at(j);
-        ROS_INFO("last_results_buf.size(): %d, diff.norm(): %f", last_results_buf.size(), diff.norm());
+        ROS_INFO("diff.norm(): ", diff.norm());
         if(diff.norm() < diff_min){
           ROS_INFO("find new item");
+          ROS_INFO("erase index: ", (results.begin() + j));
           results.erase(results.begin() + j);
         }
       }
@@ -109,7 +108,6 @@ int watch(int _inhands, int &_nexttask) {
   for(int i=0; i<results.size(); ++i){
     ROS_INFO("create put plan");
     Eigen::Vector3d diff = results.at(i) - results_buf_.at(0);
-    ROS_INFO("results.at(i): %f, results_buf_.at(0): %f, diff.norm(): %f", results.at(i).x(), results_buf_.at(0).x(), diff.norm());
     if(diff.norm() > diff_min){
       results_buf_.push_back(results.at(i));
       for(int j=2; j<MAX; ++j){
@@ -138,10 +136,12 @@ int put(int _inhands, int &_nexttask) {
   ws.interaction_flag =
     negomo_enshu::PlannerBridgeRequest::Request::IGNORE;
 
+  Eigen::Vector3d look_pos(0.65, 0.0, 0.50 );
+  
   // start tracking object
   robot_->setTrackingMode(true);
   // look at target
-  robot_->setLookAt(shelf_initial, false, true);
+  robot_->setLookAt(look_pos, false, true);
   // start interaction on background
   planner_->iStart(negomo_lib::jumpSettings(), ws);
   ROS_INFO("place coffee reach");
