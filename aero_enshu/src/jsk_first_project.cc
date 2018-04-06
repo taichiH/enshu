@@ -33,7 +33,8 @@ int containerPose(int _inhands, int &_nexttask){
 }
 
 int shelfPose(int _inhands, int &_nexttask){
-  lib_->lookShelfFront();
+  lib_->lookShelfFront(-0.1);
+  // lib_->lookShelfFront(-0.05);
   robot_->moveTo("s_shelf");
   while(robot_->isMoving() && ros::ok()){
     usleep(200*1000);
@@ -55,9 +56,10 @@ int watchInteraction(int _inhands, int &_nexttask) {
     ROS_INFO("watch interaction");
     ROS_INFO("index_: %d", index_);
     std::vector<Eigen::Vector3d> tmp_vec;
-    for(int i=0; i<(index_ - 1); ++i){
+    for(int i=0; i<index_; ++i){
       tmp_vec.push_back(results_buf_.at(i));
     }
+    ROS_INFO("tmp_vec.size(): %d", tmp_vec.size());
     interaction_buf_.push_back(tmp_vec);
     auto last_pos = tmp_vec.back();
     results_buf_.clear();
@@ -81,19 +83,23 @@ int watch(int _inhands, int &_nexttask) {
   // not first time
   if(!interaction_buf_.empty()){
     std::vector<Eigen::Vector3d> last_results_buf = interaction_buf_.back();
+    ROS_INFO("results.size(): %d", results.size());
+    ROS_INFO("last_results_buf.size(): %d", last_results_buf.size());
     for(int i=0; i<last_results_buf.size(); ++i){
       for(int j=0; j<results.size(); ++j){
         Eigen::Vector3d diff = last_results_buf.at(i) - results.at(j);
-        ROS_INFO("diff.norm(): ", diff.norm());
+        ROS_INFO("diff.norm(): %f", diff.norm());
+        ROS_INFO("results.size(): %d", results.size());
         if(diff.norm() < diff_min){
           ROS_INFO("find new item");
-          ROS_INFO("erase index: ", (results.begin() + j));
+          ROS_INFO("erase index: %d", j);
           results.erase(results.begin() + j);
+          ROS_INFO("results.size(): %d", results.size());
         }
       }
     }
   }
-
+  ROS_INFO("results.size(): %d", results.size());
   if(!hand_recognition_result.empty())
     return _inhands;
 
@@ -107,12 +113,16 @@ int watch(int _inhands, int &_nexttask) {
 
   for(int i=0; i<results.size(); ++i){
     ROS_INFO("create put plan");
+    ROS_INFO("results_buf_.size(): %d", results_buf_.size());
     Eigen::Vector3d diff = results.at(i) - results_buf_.at(0);
+    ROS_INFO("diff.norm: %f", diff.norm());
     if(diff.norm() > diff_min){
+      ROS_INFO("results_buf_.size(): %d", results_buf_.size());
       results_buf_.push_back(results.at(i));
       for(int j=2; j<MAX; ++j){
         results_buf_.push_back(results_buf_.at(j-1) + diff);
       }
+      ROS_INFO("results_buf_.size(): %d", results_buf_.size());
       ROS_INFO("done put planning");
       planner_->getEntities().put("loopCondition", false);
       break;
@@ -151,7 +161,10 @@ int put(int _inhands, int &_nexttask) {
     _nexttask = -404;
   }
   // finish interaction on background
+  usleep(10000 * 1000);
   planner_->iJoin(_inhands, _nexttask); // set next task
+  ROS_INFO("start nexttask");
+  ROS_INFO("end nexttask");
 
   if (_nexttask != -1)
     return lib_->getUsingHandsNum();
@@ -179,10 +192,10 @@ int pick(int _inhands, int &_nexttask) {
 
   if (found)
     found = lib_->pickCoffeeFront(pos_, 0.83);
-  if (!found) {
-    planner_->setBackTrack("failed coffee!");
-    _nexttask = -404;
-  }
+  // if (!found) {
+  //   planner_->setBackTrack("failed coffee!");
+  //   _nexttask = -404;
+  // }
 
   lib_->sendResetPose();
   return lib_->getUsingHandsNum();
