@@ -7,8 +7,8 @@ namespace aero {
     : nh_(_nh), controller_(_controller)
   {
     usleep(1000 * 1000);
-    controller_->setPoseVariables(aero::pose::reset);
-    controller_->sendModelAngles(2000);
+    // controller_->setPoseVariables(aero::pose::reset);
+    // controller_->sendModelAngles(2000);
     controller_->setRobotStateToCurrentState();
     features_.reset(new aero::vision::ObjectFeatures(nh_, controller_));
     features_->setCameraTransform("head_base_link", _cam_pos, _cam_qua);
@@ -236,7 +236,9 @@ namespace aero {
 
     //////////////////////////////////////////////////////////
   void DevelLib::lookShelfFront(float _lifter_z) {
+    ROS_INFO("lookShelfFront start");
     controller_->setPoseVariables(aero::pose::reset_manip);
+    // controller_->setLifter(0.0, _lifter_z);
     controller_->setLifter(0.05, _lifter_z);
     controller_->setJoint(aero::joint::r_shoulder_y, -0.3);
     controller_->setJoint(aero::joint::l_shoulder_y, 0.3);
@@ -244,7 +246,8 @@ namespace aero {
     controller_->setNeck(0.0, M_PI/ 2.0 ,0.0);
     std::map<aero::joint, double> av;
     controller_->getRobotStateVariables(av);
-    controller_->sendModelAngles(calcPathTime(av, 0.8),aero::ikrange::wholebody);
+    ROS_INFO("   time is %d", calcPathTime(av, 0.8));
+    controller_->sendModelAngles(5000,aero::ikrange::wholebody);
     controller_->waitInterpolation();
  }
 
