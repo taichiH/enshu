@@ -201,10 +201,15 @@ void NegomoPlanner::run(std::vector<negomo_lib::ActionList> _als, ActionList *_e
 {
   while (ros::ok()) {
     int task, from=0;
-    if (getTaskFromQueue(task, from))
+    if (getTaskFromQueue(task, from)) {
+      ROS_INFO("          task is %d", task);
+      ROS_INFO("          from is %d", from);
       runTask(task, _als, _el, _tl, from);
-    else
+    } else {
+      ROS_WARN("          task is %d", task);
+      ROS_WARN("          from is %d", from);
       break;
+    }
   }
 }
 
