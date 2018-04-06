@@ -11,6 +11,8 @@
 #include <aero_std/TopGrasp-inl.hh>
 #include <aero_recognition_msgs/LabeledPoseArray.h>
 #include <tf/transform_listener.h>
+#include <ar_track_alvar_msgs/AlvarMarkers.h>
+#include <geometry_msgs/PoseWithCovarianceStamped.h>
 
 namespace aero {
 
@@ -68,6 +70,12 @@ namespace aero {
 
   public: bool goTo(std::string _location);
 
+  private: void triggerArMarker(bool _trigger);
+
+  public: bool adjustShelfArMarker(std::vector<std::string> _markernames={"/shelf_1_marker_link_3", "/shelf_1_marker_link_4", "/shelf_1_marker_link_5"});
+
+  private: void arMarkerCallback_(const ar_track_alvar_msgs::AlvarMarkersPtr _msg);
+
     // calculation utils
 
   public: Eigen::Quaterniond getRotationQuaternion(std::string _axis, double _radian);
@@ -113,6 +121,16 @@ namespace aero {
   private: ros::Subscriber fcn_sub_;
 
   private: ros::Publisher speak_pub_;
+
+  private: ros::Subscriber ar_sub_;
+
+  private: ros::Publisher ar_start_pub_;
+
+  private: ros::Publisher initialpose_pub_;
+
+  private: ar_track_alvar_msgs::AlvarMarkers ar_msg_;
+
+  private: tf::TransformListener tf_listener_;
   };
 
   typedef std::shared_ptr<DevelLib> DevelLibPtr;

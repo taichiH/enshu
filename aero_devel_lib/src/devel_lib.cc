@@ -14,6 +14,9 @@ namespace aero {
     features_->setCameraTransform("head_base_link", _cam_pos, _cam_qua);
     fcn_sub_ = nh_.subscribe("/object_3d_projector/output", 1, &DevelLib::fcnCallback_, this);
     fcn_starter_ = nh_.serviceClient<std_srvs::SetBool>("/object_detector/set_mode");
+    ar_sub_ = nh_.subscribe("/ar_pose_marker", 1, &DevelLib::arMarkerCallback_, this);
+    ar_start_pub_ = nh_.advertise<std_msgs::Bool>("/ar_track_alvar/enable_detection", 1);
+    initialpose_pub_ = nh_.advertise<geometry_msgs::PoseWithCovarianceStamped>("/initialpose", 1);
     speak_pub_ = nh_.advertise<std_msgs::String>("/windows/voice", 10);
   }
 
@@ -381,6 +384,146 @@ namespace aero {
   }
 
   //////////////////////////////////////////////////////////
+  void DevelLib::triggerArMarker(bool _trigger) {
+    std_msgs::Bool msg;
+    msg.data = _trigger;
+    ar_start_pub_.publish(msg);
+  }
+
+  //////////////////////////////////////////////////////////
+  bool DevelLib::adjustShelfArMarker(std::vector<std::string> _markernames) {
+    triggerArMarker(true); // start AR marker
+
+    ros::Time now = ros::Time::now();
+    std::map<int, Eigen::Vector3d> ref_markers, markers;
+    std::vector<int> indexes;
+
+    for (auto tmp_name : _markernames) {
+      Eigen::Vector3d tmp_position;
+      ROS_INFO("%s: get tf %s", __FUNCTION__, tmp_name.c_str());
+      tf::StampedTransform tr;
+      try {
+        tf_listener_.waitForTransform("/map", tmp_name, ros::Time(0), ros::Duration(3.0));
+        tf_listener_.lookupTransform("/map", tmp_name, ros::Time(0), tr);
+      } catch (tf::TransformException ex){
+        ROS_ERROR("%s",ex.what());
+        triggerArMarker(false); // stop AR marker
+        return false;
+      }
+      tmp_position.x() = tr.getOrigin().x();
+      tmp_position.y() = tr.getOrigin().y();
+      tmp_position.z() = tr.getOrigin().z();
+      // tf name -> AR id
+      std::size_t pos;
+      while ((pos = tmp_name.find("_")) != std::string::npos) {
+        std::string str = tmp_name.substr(0, pos);
+        tmp_name.erase(0, pos + str.length());
+      }
+      ref_markers[std::stoi(tmp_name)] = tmp_position;
+    }
+
+    // get markers from cv
+    bool marker_found = false;
+    for (int i = 0; i < 5; ++i) {
+      ros::spinOnce();
+      if (ar_msg_.header.stamp > now) {
+        marker_found = true;
+        break;
+      }
+      usleep(100 * 1000);
+    }
+    controller_->setRobotStateToCurrentState();
+    for (auto it : ar_msg_.markers) // match markers id with reference
+      if (ref_markers.find(it.id) != ref_markers.end()) {
+        Eigen::Vector3d tmp_position;
+        tf::pointMsgToEigen(it.pose.pose.position, tmp_position);
+        markers[it.id] = features_->convertWorld(tmp_position);
+        indexes.push_back(it.id);
+      }
+    triggerArMarker(false); // stop AR marker
+
+    if (static_cast<int>(markers.size()) < 2) {
+      ROS_WARN("%s: not enough markers for matching shelf", __FUNCTION__);
+      return false;
+    }
+
+    // marker adjustment from here
+    std::vector<Eigen::Vector3d> globals, locals;
+    for (int i : indexes) {
+      globals.push_back(ref_markers.at(i));
+      locals.push_back(markers.at(i));
+    }
+
+    // compute transform estimation SVDXY
+    Eigen::Vector3d local_com = Eigen::VectorXd::Zero(3);
+    Eigen::Vector3d global_com = Eigen::VectorXd::Zero(3);
+    int num = static_cast<int>(locals.size());
+    Eigen::MatrixXd X_dash(2, num), Y_dash(2, num), R(2,2), U(2,2), V(2,2), H(2,2);
+    // compute center of mass
+    for (int i = 0; i < num; ++i) {
+      local_com += locals.at(i);
+      global_com += globals.at(i);
+    }
+    local_com /= num;
+    global_com /= num;
+
+    // make matrix
+    for (int i = 0; i < num; ++i) {
+      X_dash(0,i) = locals.at(i).x() - local_com.x();
+      X_dash(1,i) = locals.at(i).y() - local_com.y();
+      Y_dash(0,i) = globals.at(i).x() - global_com.x();
+      Y_dash(1,i) = globals.at(i).y() - global_com.y();
+    }
+
+    // SVD
+    Eigen::JacobiSVD<Eigen::Matrix2d> svd(X_dash * Y_dash.transpose(), Eigen::ComputeFullU | Eigen::ComputeFullV);
+    U = svd.matrixU();
+    V = svd.matrixV();
+
+    // make rotation matrix
+    Eigen::Matrix3d rot;
+    H = Eigen::MatrixXd::Identity(2,2);
+    H(1,1) = (V * U.transpose()).determinant();
+    R = V * H * U.transpose();
+    rot = Eigen::MatrixXd::Identity(3,3);
+    rot(0,0) = R(0,0);
+    rot(1,0) = R(1,0);
+    rot(0,1) = R(0,1);
+    rot(1,1) = R(1,1);
+
+    // calc trans
+    Eigen::Vector3d trans = global_com - rot * local_com;
+
+    Eigen::Quaterniond qua(rot);
+
+    if (std::isnan(trans.x()) || std::isnan(trans.y())) {
+      ROS_WARN("%s: nan found", __FUNCTION__);
+      return false;
+    }
+
+    geometry_msgs::PoseWithCovarianceStamped initialpose;
+    initialpose.header.stamp = now;
+    initialpose.header.frame_id = "/map";
+    initialpose.pose.pose.position.x = trans.x();
+    initialpose.pose.pose.position.y = trans.y();
+    initialpose.pose.pose.position.z = 0.0;
+    initialpose.pose.pose.orientation.w = qua.w();
+    initialpose.pose.pose.orientation.x = qua.x();
+    initialpose.pose.pose.orientation.y = qua.y();
+    initialpose.pose.pose.orientation.z = qua.z();
+    initialpose.pose.covariance[0] = 0.25;
+    initialpose.pose.covariance[7] = 0.25;
+    initialpose.pose.covariance[35] = 0.06853891945200942;
+    initialpose_pub_.publish(initialpose);
+
+    return true;
+  }
+
+  void DevelLib::arMarkerCallback_(const ar_track_alvar_msgs::AlvarMarkersPtr _msg) {
+    ar_msg_ = *_msg;
+  }
+
+  //////////////////////////////////////////////////////////
   Eigen::Quaterniond DevelLib::getRotationQuaternion(std::string _axis, double _radian)
   {
     Eigen::Quaterniond qua;
@@ -403,8 +546,6 @@ namespace aero {
     std::map<aero::joint, double> reset_pose;
     controller_->setPoseVariables(aero::pose::reset_manip);
     controller_->getRobotStateVariables(reset_pose);
-
-    std::map<aero::joint, double> end, mid, entry;
 
     std::vector<std::map<aero::joint, double> > poses;
     // solve all poses
@@ -454,7 +595,7 @@ namespace aero {
     int min_time = std::numeric_limits<int>::max();
     int index = 0;
     if (_lock_lifter) {
-      for (int i = 0; i < static_cast<int>(trajs_per_pose.begin()->size()); ++i) {
+      for (int i = 0; i < static_cast<int>(trajs_per_pose.size()); ++i) {
         int time = 0;
         auto traj = trajs_per_pose.at(i);
         for (auto pose = traj.begin() + 1; pose != traj.end(); ++pose)
