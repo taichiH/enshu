@@ -42,9 +42,11 @@ namespace aero {
   //////////////////////////////////////////////////////////
   bool DevelLib::makeTopGrasp(const aero::arm _arm, const Eigen::Vector3d _pos, aero::trajectory& _tra) {
     // diffs
-    Eigen::Vector3d end_diff, mid_diff, entry_diff, offset;
+    Eigen::Vector3d end_diff, mid_diff, mid2_diff, mid3_diff, entry_diff, offset;
     end_diff = {0.0 ,0.0, -0.04};
     mid_diff = {-0.0,0.0,0.1};
+    mid2_diff = {-0.05,0.0,0.05};
+    mid3_diff = {-0.075,0.0,0.10};
     entry_diff = {-0.1,0.0,0.15};
     offset = {0.0,0.0,0.0};
 
@@ -64,19 +66,25 @@ namespace aero {
       entry_qua = getRotationQuaternion("x", -90.0 * M_PI / 180.0);
     }
 
-    aero::Transform end_pose, mid_pose, entry_pose;
+    aero::Transform end_pose, mid_pose, mid2_pose, mid3_pose, entry_pose;
     end_pose = aero::Translation(_pos + offset + end_diff) * end_qua;
     mid_pose = aero::Translation(_pos + offset + mid_diff) * mid_qua;
+    mid2_pose = aero::Translation(_pos + offset + mid2_diff) * mid_qua;
+    mid3_pose = aero::Translation(_pos + offset + mid3_diff) * mid_qua;
     entry_pose = aero::Translation(_pos + offset + entry_diff) * entry_qua;
     features_->setMarker(entry_pose, 1);
     features_->setMarker(mid_pose, 2);
-    features_->setMarker(end_pose, 3);
+    features_->setMarker(mid2_pose, 3);
+    features_->setMarker(mid3_pose, 5);
+    features_->setMarker(end_pose, 5);
     ROS_WARN("entry: x:%f y:%f z:%f", entry_pose.translation().x(), entry_pose.translation().y(), entry_pose.translation().z());
     ROS_WARN("mid  : x:%f y:%f z:%f", mid_pose.translation().x(), mid_pose.translation().y(), mid_pose.translation().z());
+    ROS_WARN("mid2  : x:%f y:%f z:%f", mid2_pose.translation().x(), mid2_pose.translation().y(), mid2_pose.translation().z());
+    ROS_WARN("mid3  : x:%f y:%f z:%f", mid3_pose.translation().x(), mid3_pose.translation().y(), mid3_pose.translation().z());
     ROS_WARN("end  : x:%f y:%f z:%f", end_pose.translation().x(), end_pose.translation().y(), end_pose.translation().z());
 
     aero::trajectory tra;
-    bool res = fastestTrajectory3(_arm, {entry_pose, mid_pose, end_pose}, aero::eef::pick, tra);
+    bool res = fastestTrajectory3(_arm, {entry_pose, mid_pose, mid2_pose, mid3_pose, end_pose}, aero::eef::pick, tra);
     if (!res) {
       ROS_INFO("%s: ik failed", __FUNCTION__);
       return false;
