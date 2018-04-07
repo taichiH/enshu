@@ -3,6 +3,7 @@
   or enter an error recovery mode when nothing is found.
 */
 #define MAX 4
+#define FEATURES_VIRABLE 7
 #include "negomo/NegomoLib2.hh"
 #include "aero_devel_lib/devel_lib.hh"
 
@@ -46,7 +47,7 @@ void visualizeMarker(){
   aero::Transform obj_pos;
   for(int i=0; i<results_buf_.size(); ++i){
     obj_pos = aero::Translation(results_buf_.at(i));
-    lib_->features_->setMarker(obj_pos, i+5);
+    lib_->features_->setMarker(obj_pos, i+FEATURES_VALIABLE);
   }
 }
 
@@ -139,7 +140,7 @@ int put(int _inhands, int &_nexttask) {
   aero::Transform obj_pos;
   for(int i=0; i<results_buf_.size(); ++i){
     obj_pos = aero::Translation(results_buf_.at(i));
-    lib_->features_->setMarker(obj_pos, i+5);
+    lib_->features_->setMarker(obj_pos, i+FEATURES_VALIABLE);
   }
 
   negomo_lib::waitSettings ws;
