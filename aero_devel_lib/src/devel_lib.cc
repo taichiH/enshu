@@ -44,7 +44,7 @@ namespace aero {
     // diffs
     Eigen::Vector3d end_diff, mid_diff, mid2_diff, mid3_diff, entry_diff, offset;
     end_diff = {0.0 ,0.0, -0.04};
-    mid_diff = {-0.0,0.0,0.1};
+    mid_diff = {-0.0,0.0,0.01};
     mid2_diff = {-0.05,0.0,0.05};
     mid3_diff = {-0.075,0.0,0.10};
     entry_diff = {-0.1,0.0,0.15};
@@ -75,7 +75,7 @@ namespace aero {
     features_->setMarker(entry_pose, 1);
     features_->setMarker(mid_pose, 2);
     features_->setMarker(mid2_pose, 3);
-    features_->setMarker(mid3_pose, 5);
+    features_->setMarker(mid3_pose, 4);
     features_->setMarker(end_pose, 5);
     ROS_WARN("entry: x:%f y:%f z:%f", entry_pose.translation().x(), entry_pose.translation().y(), entry_pose.translation().z());
     ROS_WARN("mid  : x:%f y:%f z:%f", mid_pose.translation().x(), mid_pose.translation().y(), mid_pose.translation().z());
@@ -84,7 +84,7 @@ namespace aero {
     ROS_WARN("end  : x:%f y:%f z:%f", end_pose.translation().x(), end_pose.translation().y(), end_pose.translation().z());
 
     aero::trajectory tra;
-    bool res = fastestTrajectory3(_arm, {entry_pose, mid_pose, mid2_pose, mid3_pose, end_pose}, aero::eef::pick, tra);
+    bool res = fastestTrajectory3(_arm, {entry_pose, mid3_pose, mid2_pose, mid_pose, end_pose}, aero::eef::pick, tra);
     if (!res) {
       ROS_INFO("%s: ik failed", __FUNCTION__);
       return false;
@@ -185,21 +185,19 @@ namespace aero {
       controller_->goPos(0.0, _offset_y, 0.0);
     }
 
-    std::vector<double> factors = {0.8, 0.8, 0.5};
     ROS_INFO("> tra size is %d", static_cast<int>(tra_.size()));
-    controller_->sendTrajectory(tra_, calcTrajectoryTimes(tra_, factors), aero::ikrange::wholebody);
+    controller_->sendTrajectory(tra_, calcTrajectoryTimes(tra_, 0.8), aero::ikrange::wholebody);
     controller_->waitInterpolation();
     return true;
   }
 
   bool DevelLib::placeCoffeeReturn() {
     std::vector<double> factors;
-    factors = {0.5, 0.8};
     aero::trajectory tra_release;
     ROS_INFO("< tra size is %d", static_cast<int>(tra_.size()));
     tra_release.push_back(tra_.at(1));
     tra_release.push_back(tra_.at(0));
-    controller_->sendTrajectory(tra_release, calcTrajectoryTimes(tra_release, factors), aero::ikrange::wholebody);
+    controller_->sendTrajectory(tra_release, calcTrajectoryTimes(tra_release, 0.8), aero::ikrange::wholebody);
     controller_->waitInterpolation();
     return true;
   }
