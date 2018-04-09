@@ -3,9 +3,10 @@
   or enter an error recovery mode when nothing is found.
 */
 #define MAX 4
-#define FEATURES_VIRABLE 7
+#define FEATURES_VARIABLE 7
 #include "negomo/NegomoLib2.hh"
 #include "aero_devel_lib/devel_lib.hh"
+
 
 aero::interface::AeroMoveitInterface::Ptr robot_; // controller
 aero::DevelLibPtr lib_; // development library
@@ -16,6 +17,7 @@ std::vector<std::vector<Eigen::Vector3d>> interaction_buf_;
 std::map<std::string, std::function<void(int)> > pre_;
 int interaction_index_ = 0;
 int index_ = 2;
+Eigen::Vector3d base_diff_;
 
 // when entering error
 int error(int _inhands, int &_nexttask) {
@@ -47,7 +49,7 @@ void visualizeMarker(){
   aero::Transform obj_pos;
   for(int i=0; i<results_buf_.size(); ++i){
     obj_pos = aero::Translation(results_buf_.at(i));
-    lib_->features_->setMarker(obj_pos, i+FEATURES_VALIABLE);
+    lib_->features_->setMarker(obj_pos, i+FEATURES_VARIABLE);
   }
 }
 
@@ -120,6 +122,7 @@ int watch(int _inhands, int &_nexttask) {
     if(diff.norm() > diff_min){
       ROS_INFO("results_buf_.size(): %d", results_buf_.size());
       results_buf_.push_back(results.at(i));
+      base_diff_ = diff;
       for(int j=2; j<MAX; ++j){
         results_buf_.push_back(results_buf_.at(j-1) + diff);
       }
@@ -140,7 +143,7 @@ int put(int _inhands, int &_nexttask) {
   aero::Transform obj_pos;
   for(int i=0; i<results_buf_.size(); ++i){
     obj_pos = aero::Translation(results_buf_.at(i));
-    lib_->features_->setMarker(obj_pos, i+FEATURES_VALIABLE);
+    lib_->features_->setMarker(obj_pos, i+FEATURES_VARIABLE);
   }
 
   negomo_lib::waitSettings ws;
@@ -159,6 +162,7 @@ int put(int _inhands, int &_nexttask) {
   bool found = lib_->placeCoffeeReach(shelf_initial, 0);
   if (!found) {
     planner_->setError(true, "failed put");
+    robot_->goPos(base_diff_.x(), base_diff_.y(), base_diff_.z());
     _nexttask = -404;
   }
   // finish interaction on background
@@ -167,16 +171,18 @@ int put(int _inhands, int &_nexttask) {
   ROS_INFO("start nexttask");
   ROS_INFO("end nexttask");
 
+  // finich tracking object
+  robot_->setTrackingMode(false);
+
   if (_nexttask != -1)
     return lib_->getUsingHandsNum();
+
   ROS_INFO("open hand");
   lib_->openHand(aero::arm::rarm);
   ROS_INFO("place coffee return");
   lib_->placeCoffeeReturn();
   lib_->sendResetPose();
 
-  // finich tracking object
-  robot_->setTrackingMode(false);
   if(index_ == MAX-1){
     ROS_INFO("put loop end");
     planner_->getEntities().put("loopCondition", false);
@@ -193,10 +199,10 @@ int pick(int _inhands, int &_nexttask) {
 
   if (found)
     found = lib_->pickCoffeeFront(pos_, 0.83);
-  // if (!found) {
-  //   planner_->setBackTrack("failed coffee!");
-  //   _nexttask = -404;
-  // }
+  if (!found) {
+    planner_->setBackTrack("failed coffee!");
+    _nexttask = -404;
+  }
 
   lib_->sendResetPose();
   return lib_->getUsingHandsNum();
@@ -206,7 +212,8 @@ int pick(int _inhands, int &_nexttask) {
 void proactive0(int _target) {}; // not used in this demo
 void proactive1(int _target) {}; // not used in this demo
 void reactive0(int _target) {
-  // robot_->setLookAt(Eigen::Vector3d(1.0, 0.0, 1.8), false, true, false);
+  auto human_face_pos = planner_->getHeadPos(_target);;
+  robot_->setLookAt(std::get<0>(human_face_pos), std::get<1>(human_face_pos), std::get<2>(human_face_pos), true, true, false);
   ROS_INFO("in reactive 0");
   usleep(1000 * 1000);
 };
