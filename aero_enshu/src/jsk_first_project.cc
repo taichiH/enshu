@@ -54,6 +54,7 @@ void visualizeMarker(){
 
 int watchInteraction(int _inhands, int &_nexttask) {
   ROS_INFO("watchInteraction start: %d", results_buf_.size());
+  // ignore first interaction
   if(interaction_index_ > 0){
     std::vector<Eigen::Vector3d> tmp_vec;
     for(int i=0; i<index_; ++i){
@@ -78,15 +79,19 @@ int watch(int _inhands, int &_nexttask) {
   bool found = lib_->findItem("pie", results);
 
   const double diff_min = 0.09;
+  const double diff_max = 0.30;
 
   // not first time
   if(!interaction_buf_.empty()){
-    std::vector<Eigen::Vector3d> last_results_buf = interaction_buf_.back();
-    for(int i=0; i<last_results_buf.size(); ++i){
-      for(int j=0; j<results.size(); ++j){
-        Eigen::Vector3d diff = last_results_buf.at(i) - results.at(j);
-        if(diff.norm() < diff_min){
-          results.erase(results.begin() + j);
+    for(int i=0; i<interaction_buf_.size(); ++i){
+      for(int j=0; j<interaction_buf_.at(i).size(); ++j){
+        if((i != 0) && (j = 0))
+          continue;
+        for(int k=0; k<results.size(); ++k){
+          Eigen::Vector3d diff = interaction_buf_.at(i).at(j) - results.at(k);
+          if(diff.norm() < diff_min){
+            results.erase(results.begin() + k);
+          }
         }
       }
     }
@@ -105,7 +110,7 @@ int watch(int _inhands, int &_nexttask) {
   for(int i=0; i<results.size(); ++i){
     Eigen::Vector3d diff = results.at(i) - results_buf_.at(0);
     ROS_INFO("diff.norm: %f", diff.norm());
-    if(diff.norm() > diff_min){
+    if((diff.norm() > diff_min) && (diff.norm() < diff_max)){
       results_buf_.push_back(results.at(i));
       base_diff_ = diff;
       for(int j=2; j<MAX; ++j){
@@ -113,6 +118,16 @@ int watch(int _inhands, int &_nexttask) {
       }
       planner_->getEntities().put("loopCondition", false);
       break;
+    } else if(diff.norm() > diff_max) {
+      ROS_INFO("interaction_index_: %d", interaction_index_);
+      if(interaction_index_ < 2)
+        continue;
+      auto last_results_buf = interaction_buf_.at(interaction_index_ - 1);
+      Eigen::Vector3d shift_vec = results.at(i) - last_results_buf.at(0);
+      base_diff_ = shift_vec;
+      for(int j=0; j<last_results_buf.size(); ++j){
+        results_buf_.push_back(last_results_buf.at(j) + shift_vec);
+      }
     }
   }
   visualizeMarker();
