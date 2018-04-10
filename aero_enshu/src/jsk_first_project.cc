@@ -18,6 +18,8 @@ std::map<std::string, std::function<void(int)> > pre_;
 int interaction_index_ = 0;
 int index_ = 2;
 Eigen::Vector3d base_diff_;
+const double diff_min;
+const double diff_max;
 
 // when entering error
 int error(int _inhands, int &_nexttask) {
@@ -77,9 +79,6 @@ int watch(int _inhands, int &_nexttask) {
 
   std::vector<Eigen::Vector3d> results;
   bool found = lib_->findItem("pie", results);
-
-  const double diff_min = 0.09;
-  const double diff_max = 0.30;
 
   // not first time
   if(!interaction_buf_.empty()){
@@ -231,6 +230,9 @@ int main(int argc, char **argv) {
   ros::init(argc, argv, "sample");
   ros::NodeHandle nh;
 
+  nh.getParam("diff_min", diff_min);
+  nh.getParam("diff_max", diff_max);
+  
   // init variables
   robot_.reset(new aero::interface::AeroMoveitInterface(nh));
   lib_.reset(new aero::DevelLib(nh, robot_));
