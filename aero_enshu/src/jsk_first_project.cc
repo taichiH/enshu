@@ -18,7 +18,7 @@ std::map<std::string, std::function<void(int)> > pre_;
 int interaction_index_ = 0;
 int index_ = 2;
 Eigen::Vector3d base_diff_;
-double diff_min = 0.09;
+double diff_min = 0.13;
 double diff_max = 0.30;
 
 // when entering error
@@ -95,6 +95,7 @@ int watch(int _inhands, int &_nexttask) {
       }
     }
   }
+  ROS_INFO("results.size()", results.size());
   if(!hand_recognition_result.empty())
     return _inhands;
 
@@ -106,16 +107,11 @@ int watch(int _inhands, int &_nexttask) {
     return _inhands;
   }
 
-  Eigen::Vector3d move_base_vec(0, 1, 0);
-
   for(int i=0; i<results.size(); ++i){
-    auto cos_theta = (move_base_vec.norm() * results.at(i).norm()) / results.at(i).dot(move_base_vec);
-    auto move_vec = results.at(i) * cos_theta;
-    base_diff_ = move_vec;
     Eigen::Vector3d diff = results.at(i) - results_buf_.at(0);
-
+    base_diff_ = diff;
     ROS_INFO("diff.norm: %f", diff.norm());
-    if((diff.norm() > diff_min) && (diff.norm() < diff_max)){
+    if((diff.norm() > diff_min) && (diff.norm() < diff_max) && (interaction_index_ < 2)){
       ROS_INFO("follow_put");
       results_buf_.push_back(results.at(i));
       for(int j=2; j<MAX; ++j){
@@ -123,12 +119,11 @@ int watch(int _inhands, int &_nexttask) {
       }
       planner_->getEntities().put("loopCondition", false);
       break;
-    } else if(diff.norm() > diff_max) {
-      ROS_INFO("unfollow_put");
+    } else if(diff.norm() > diff_max && (interaction_index_ > 1)) {
+      ROS_INFO("-------------------------unfollow_put");
       ROS_INFO("interaction_index_: %d", interaction_index_);
-      if(interaction_index_ < 2)
-        continue;
       Eigen::Vector3d shift_vec = results.at(i) - interaction_buf_.back().at(0);
+      ROS_INFO("shift_vec.x(): %d", shift_vec.x());
       for(int j=0; j<interaction_buf_.back().size(); ++j){
         results_buf_.push_back(interaction_buf_.back().at(j) + shift_vec);
       }
@@ -162,10 +157,12 @@ int put(int _inhands, int &_nexttask) {
   robot_->setLookAt(look_pos, false, true);
   // start interaction on background
   planner_->iStart(negomo_lib::jumpSettings(), ws);
+
   ROS_INFO("place coffee reach");
   bool found = lib_->placeCoffeeReach(shelf_initial, 0);
-  // robot_->goPos(base_diff_.x(), base_diff_.y(), base_diff_.z());
+
   if (!found) {
+    robot_->goPos(base_diff_.x(), base_diff_.y(), base_diff_.z());
     planner_->setError(true, "failed put");
     _nexttask = -404;
   }
@@ -173,7 +170,7 @@ int put(int _inhands, int &_nexttask) {
   usleep(10000 * 1000);
   planner_->iJoin(_inhands, _nexttask); // set next task
 
-  // finich tracking object
+  // finish tracking object
   robot_->setTrackingMode(false);
 
   if (_nexttask != -1)
