@@ -43,11 +43,11 @@ namespace aero {
   bool DevelLib::makeTopGrasp(const aero::arm _arm, const Eigen::Vector3d _pos, aero::trajectory& _tra) {
     // diffs
     Eigen::Vector3d end_diff, mid_diff, mid2_diff, mid3_diff, entry_diff, offset;
-    end_diff = {0.0 ,0.0, -0.04};
-    mid_diff = {-0.0,0.0,0.01};
-    mid2_diff = {-0.05,0.0,0.05};
-    mid3_diff = {-0.075,0.0,0.10};
-    entry_diff = {-0.1,0.0,0.15};
+    end_diff = {0.0 ,0.0, -0.035};
+    mid_diff = {-0.0,0.0,0.1};
+    mid2_diff = {-0.02,0.0,0.05};
+    mid3_diff = {-0.05,0.0,0.10};
+    entry_diff = {-0.10,0.0,0.15};
     offset = {0.0,0.0,0.0};
 
     // rotations
