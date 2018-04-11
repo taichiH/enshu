@@ -1,12 +1,12 @@
 /*
-  In this demo, a robot will pick up a caffelatte
-  or enter an error recovery mode when nothing is found.
+  In this demo, a robot will pick up a pie
+  and wait for human instraction. When robot is 
+  instracted enter an interactive mode.
 */
 #define MAX 4
 #define FEATURES_VARIABLE 7
 #include "negomo/NegomoLib2.hh"
 #include "aero_devel_lib/devel_lib.hh"
-
 
 aero::interface::AeroMoveitInterface::Ptr robot_; // controller
 aero::DevelLibPtr lib_; // development library
@@ -18,8 +18,8 @@ std::map<std::string, std::function<void(int)> > pre_;
 int interaction_index_ = 0;
 int index_ = 2;
 Eigen::Vector3d base_diff_;
-const double diff_min;
-const double diff_max;
+double diff_min = 0.09;
+double diff_max = 0.30;
 
 // when entering error
 int error(int _inhands, int &_nexttask) {
@@ -106,27 +106,34 @@ int watch(int _inhands, int &_nexttask) {
     return _inhands;
   }
 
+  Eigen::Vector3d move_base_vec(0, 1, 0);
+
   for(int i=0; i<results.size(); ++i){
+    auto cos_theta = (move_base_vec.norm() * results.at(i).norm()) / results.at(i).dot(move_base_vec);
+    auto move_vec = results.at(i) * cos_theta;
+    base_diff_ = move_vec;
     Eigen::Vector3d diff = results.at(i) - results_buf_.at(0);
+
     ROS_INFO("diff.norm: %f", diff.norm());
     if((diff.norm() > diff_min) && (diff.norm() < diff_max)){
+      ROS_INFO("follow_put");
       results_buf_.push_back(results.at(i));
-      base_diff_ = diff;
       for(int j=2; j<MAX; ++j){
         results_buf_.push_back(results_buf_.at(j-1) + diff);
       }
       planner_->getEntities().put("loopCondition", false);
       break;
     } else if(diff.norm() > diff_max) {
+      ROS_INFO("unfollow_put");
       ROS_INFO("interaction_index_: %d", interaction_index_);
       if(interaction_index_ < 2)
         continue;
-      auto last_results_buf = interaction_buf_.at(interaction_index_ - 1);
-      Eigen::Vector3d shift_vec = results.at(i) - last_results_buf.at(0);
-      base_diff_ = shift_vec;
-      for(int j=0; j<last_results_buf.size(); ++j){
-        results_buf_.push_back(last_results_buf.at(j) + shift_vec);
+      Eigen::Vector3d shift_vec = results.at(i) - interaction_buf_.back().at(0);
+      for(int j=0; j<interaction_buf_.back().size(); ++j){
+        results_buf_.push_back(interaction_buf_.back().at(j) + shift_vec);
       }
+      planner_->getEntities().put("loopCondition", false);
+      break;
     }
   }
   visualizeMarker();
@@ -157,9 +164,9 @@ int put(int _inhands, int &_nexttask) {
   planner_->iStart(negomo_lib::jumpSettings(), ws);
   ROS_INFO("place coffee reach");
   bool found = lib_->placeCoffeeReach(shelf_initial, 0);
+  // robot_->goPos(base_diff_.x(), base_diff_.y(), base_diff_.z());
   if (!found) {
     planner_->setError(true, "failed put");
-    robot_->goPos(base_diff_.x(), base_diff_.y(), base_diff_.z());
     _nexttask = -404;
   }
   // finish interaction on background
@@ -230,8 +237,8 @@ int main(int argc, char **argv) {
   ros::init(argc, argv, "sample");
   ros::NodeHandle nh;
 
-  nh.getParam("diff_min", diff_min);
-  nh.getParam("diff_max", diff_max);
+  // nh.getParam("diff_min", diff_min);
+  // nh.getParam("diff_max", diff_max);
   
   // init variables
   robot_.reset(new aero::interface::AeroMoveitInterface(nh));
