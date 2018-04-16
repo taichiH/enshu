@@ -40,6 +40,9 @@ int containerPose(int _inhands, int &_nexttask){
 int shelfPose(int _inhands, int &_nexttask){
   lib_->lookShelfFront(-0.1);
   robot_->moveTo("s_shelf");
+  while(robot_->isMoving() && ros::ok()){
+    usleep(200*1000);
+  }
   lib_->adjustShelfArMarker();
   robot_->moveTo("s_shelf");
   while(robot_->isMoving() && ros::ok()){
