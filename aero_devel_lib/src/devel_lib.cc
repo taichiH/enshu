@@ -12,7 +12,8 @@ namespace aero {
     controller_->setRobotStateToCurrentState();
     features_.reset(new aero::vision::ObjectFeatures(nh_, controller_));
     features_->setCameraTransform("head_base_link", _cam_pos, _cam_qua);
-    fcn_sub_ = nh_.subscribe("/object_3d_projector/output", 1, &DevelLib::fcnCallback_, this);
+    // fcn_sub_ = nh_.subscribe("/object_3d_projector/output", 1, &DevelLib::fcnCallback_, this);
+    fcn_sub_ = nh_.subscribe("/object_3d_projector_/output", 1, &DevelLib::fcnCallback_, this);
     hand_sub_ = nh_.subscribe("/hand_detector/boxes", 1, &DevelLib::handCallback_, this);
     fcn_starter_ = nh_.serviceClient<std_srvs::SetBool>("/object_detector/set_mode");
     ar_sub_ = nh_.subscribe("/ar_pose_marker", 1, &DevelLib::arMarkerCallback_, this);
@@ -485,8 +486,11 @@ namespace aero {
       std::size_t pos;
       while ((pos = tmp_name.find("_")) != std::string::npos) {
         std::string str = tmp_name.substr(0, pos);
-        tmp_name.erase(0, pos + str.length());
+        std::cerr << "pos: " << pos << "  str: " <<  str << std::endl;
+        // tmp_name.erase(0, pos + str.length());
+        tmp_name.erase(0, pos + 1);
       }
+      std::cerr << "tmp_name: " << tmp_name << std::endl;
       ref_markers[std::stoi(tmp_name)] = tmp_position;
     }
 
