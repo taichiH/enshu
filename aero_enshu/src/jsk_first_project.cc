@@ -40,6 +40,8 @@ int containerPose(int _inhands, int &_nexttask){
 int shelfPose(int _inhands, int &_nexttask){
   lib_->lookShelfFront(-0.1);
   robot_->moveTo("s_shelf");
+  lib_->adjustShelfArMarker();
+  robot_->moveTo("s_shelf");
   while(robot_->isMoving() && ros::ok()){
     usleep(200*1000);
   }
@@ -234,9 +236,6 @@ int main(int argc, char **argv) {
   ros::init(argc, argv, "sample");
   ros::NodeHandle nh;
 
-  // nh.getParam("diff_min", diff_min);
-  // nh.getParam("diff_max", diff_max);
-  
   // init variables
   robot_.reset(new aero::interface::AeroMoveitInterface(nh));
   lib_.reset(new aero::DevelLib(nh, robot_));
