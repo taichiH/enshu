@@ -46,11 +46,12 @@ namespace aero {
   //////////////////////////////////////////////////////////
   bool DevelLib::makeTopGrasp(const aero::arm _arm, const Eigen::Vector3d _pos, aero::trajectory& _tra) {
     // diffs
-    Eigen::Vector3d end_diff, mid_diff, mid2_diff, mid3_diff, entry_diff, offset;
-    end_diff = {0.0 ,0.0, -0.035};
-    mid_diff = {-0.0,0.0,0.01};
+    Eigen::Vector3d end_diff, mid_diff, mid2_diff, mid3_diff, mid4_diff, entry_diff, offset;
+    end_diff = {0.0 ,0.0, -0.03};
+    mid_diff = {0.0,0.0,0.01};
     mid2_diff = {-0.02,0.0,0.05};
     mid3_diff = {-0.05,0.0,0.10};
+    mid4_diff = {-0.075,0.0,0.125};
     entry_diff = {-0.10,0.0,0.15};
     offset = {0.0,0.0,0.0};
 
@@ -70,25 +71,28 @@ namespace aero {
       entry_qua = getRotationQuaternion("x", -90.0 * M_PI / 180.0);
     }
 
-    aero::Transform end_pose, mid_pose, mid2_pose, mid3_pose, entry_pose;
+    aero::Transform end_pose, mid_pose, mid2_pose, mid3_pose, mid4_pose, entry_pose;
     end_pose = aero::Translation(_pos + offset + end_diff) * end_qua;
     mid_pose = aero::Translation(_pos + offset + mid_diff) * mid_qua;
     mid2_pose = aero::Translation(_pos + offset + mid2_diff) * mid_qua;
     mid3_pose = aero::Translation(_pos + offset + mid3_diff) * mid_qua;
+    mid4_pose = aero::Translation(_pos + offset + mid4_diff) * mid_qua;
     entry_pose = aero::Translation(_pos + offset + entry_diff) * entry_qua;
     features_->setMarker(entry_pose, 1);
     features_->setMarker(mid_pose, 2);
     features_->setMarker(mid2_pose, 3);
     features_->setMarker(mid3_pose, 4);
-    features_->setMarker(end_pose, 5);
+    features_->setMarker(mid4_pose, 5);
+    features_->setMarker(end_pose, 6);
     ROS_WARN("entry: x:%f y:%f z:%f", entry_pose.translation().x(), entry_pose.translation().y(), entry_pose.translation().z());
     ROS_WARN("mid  : x:%f y:%f z:%f", mid_pose.translation().x(), mid_pose.translation().y(), mid_pose.translation().z());
     ROS_WARN("mid2  : x:%f y:%f z:%f", mid2_pose.translation().x(), mid2_pose.translation().y(), mid2_pose.translation().z());
     ROS_WARN("mid3  : x:%f y:%f z:%f", mid3_pose.translation().x(), mid3_pose.translation().y(), mid3_pose.translation().z());
+    ROS_WARN("mid4  : x:%f y:%f z:%f", mid4_pose.translation().x(), mid4_pose.translation().y(), mid4_pose.translation().z());
     ROS_WARN("end  : x:%f y:%f z:%f", end_pose.translation().x(), end_pose.translation().y(), end_pose.translation().z());
 
     aero::trajectory tra;
-    bool res = fastestTrajectory3(_arm, {entry_pose, mid3_pose, mid2_pose, mid_pose, end_pose}, aero::eef::pick, tra);
+    bool res = fastestTrajectory3(_arm, {entry_pose, mid4_pose, mid3_pose, mid2_pose, mid_pose, end_pose}, aero::eef::pick, tra);
     if (!res) {
       ROS_INFO("%s: ik failed", __FUNCTION__);
       return false;
@@ -486,11 +490,8 @@ namespace aero {
       std::size_t pos;
       while ((pos = tmp_name.find("_")) != std::string::npos) {
         std::string str = tmp_name.substr(0, pos);
-        std::cerr << "pos: " << pos << "  str: " <<  str << std::endl;
-        // tmp_name.erase(0, pos + str.length());
         tmp_name.erase(0, pos + 1);
       }
-      std::cerr << "tmp_name: " << tmp_name << std::endl;
       ref_markers[std::stoi(tmp_name)] = tmp_position;
     }
 
