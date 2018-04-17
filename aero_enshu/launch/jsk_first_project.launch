@@ -18,7 +18,7 @@
         type="interaction.py" output="screen">
     <remap from="/speech" to="$(arg speech_topic)" />
     <param name="time" value="1.0"/>
-    <param name="phrase" value="Anything I can help?"/>
+    <param name="phrase" value="なんですか"/>
     <param name="taskto" value="task2"/>
     <param name="phrase_refuse" value="I cannot interact at the moment."/>
     <param name="time_refuse" value="1.0"/>
