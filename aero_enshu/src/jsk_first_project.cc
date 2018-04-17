@@ -18,7 +18,7 @@ std::map<std::string, std::function<void(int)> > pre_;
 int interaction_index_ = 0;
 int index_ = 2;
 Eigen::Vector3d base_diff_;
-double diff_min = 0.13;
+double diff_min = 0.15;
 double diff_max = 0.30;
 
 // when entering error
@@ -77,7 +77,6 @@ int watchInteraction(int _inhands, int &_nexttask) {
 }
 
 int watch(int _inhands, int &_nexttask) {
-  ROS_INFO("watch start: %d", results_buf_.size());
   lib_->setFCNModel("final");
   std::vector<aero_recognition_msgs::Scored2DBox>
     hand_recognition_result = lib_->recognizeHand();
@@ -100,7 +99,6 @@ int watch(int _inhands, int &_nexttask) {
       }
     }
   }
-  ROS_INFO("results.size()", results.size());
   if(!hand_recognition_result.empty())
     return _inhands;
 
@@ -128,6 +126,7 @@ int watch(int _inhands, int &_nexttask) {
       ROS_INFO("-------------------------unfollow_put");
       ROS_INFO("interaction_index_: %d", interaction_index_);
       Eigen::Vector3d shift_vec = results.at(i) - interaction_buf_.back().at(0);
+      base_diff_ = diff;
       ROS_INFO("shift_vec.x(): %d", shift_vec.x());
       for(int j=0; j<interaction_buf_.back().size(); ++j){
         results_buf_.push_back(interaction_buf_.back().at(j) + shift_vec);
@@ -154,7 +153,7 @@ int put(int _inhands, int &_nexttask) {
   ws.interaction_flag =
     negomo_enshu::PlannerBridgeRequest::Request::IGNORE;
 
-  Eigen::Vector3d look_pos(0.65, 0.0, 0.50 );
+  Eigen::Vector3d look_pos(0.65, 0.0, 0.50);
 
   // start tracking object
   robot_->setTrackingMode(true);
@@ -164,10 +163,11 @@ int put(int _inhands, int &_nexttask) {
   planner_->iStart(negomo_lib::jumpSettings(), ws);
 
   ROS_INFO("place coffee reach");
+  robot_->goPos(0, shelf_initial.y(), 0);
   bool found = lib_->placeCoffeeReach(shelf_initial, 0);
 
   if (!found) {
-    robot_->goPos(base_diff_.x(), base_diff_.y(), base_diff_.z());
+    robot_->moveTo("s_shelf_container");
     planner_->setError(true, "failed put");
     _nexttask = -404;
   }
@@ -200,8 +200,12 @@ int pick(int _inhands, int &_nexttask) {
   lib_->setFCNModel("final");
   bool found = lib_->poseAndRecognize("container", "pie", pos_, -0.2);
 
-  if (found)
+  ROS_INFO("pos_: (%f, %f, %f)", pos_.x(), pos_.y(), pos_.z());
+  if (found){
+    robot_->goPos(0, pos_.y(), 0);
+    found = lib_->poseAndRecognize("container", "pie", pos_, -0.2);
     found = lib_->pickCoffeeFront(pos_, 0.83);
+  }
   if (!found) {
     planner_->setBackTrack("failed coffee!");
     _nexttask = -404;
