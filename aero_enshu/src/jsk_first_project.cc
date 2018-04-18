@@ -63,6 +63,9 @@ int watchInteraction(int _inhands, int &_nexttask) {
   ROS_INFO("watchInteraction start: %d", results_buf_.size());
   // ignore first interaction
   if(interaction_index_ > 0){
+    ROS_INFO("call stopMotion");
+    robot_->stopMotion();
+    ROS_INFO("end stopMotion");
     std::vector<Eigen::Vector3d> tmp_vec;
     for(int i=0; i<index_; ++i){
       tmp_vec.push_back(results_buf_.at(i));
