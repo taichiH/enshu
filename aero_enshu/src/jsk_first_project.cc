@@ -12,6 +12,7 @@ aero::interface::AeroMoveitInterface::Ptr robot_; // controller
 aero::DevelLibPtr lib_; // development library
 negomo_lib::NegomoBridge2Ptr planner_; // planner
 Eigen::Vector3d pos_;
+std::vector<Eigen::Vector3d> pre_results_;
 std::vector<Eigen::Vector3d> results_buf_;
 std::vector<std::vector<Eigen::Vector3d>> interaction_buf_;
 std::map<std::string, std::function<void(int)> > pre_;
@@ -81,29 +82,25 @@ int watchInteraction(int _inhands, int &_nexttask) {
 
 int watch(int _inhands, int &_nexttask) {
   lib_->setFCNModel("final");
-  std::vector<aero_recognition_msgs::Scored2DBox>
-    hand_recognition_result = lib_->recognizeHand();
-
   std::vector<Eigen::Vector3d> results;
   bool found = lib_->findItem("pie", results);
 
-  // not first time
-  if(!interaction_buf_.empty()){
-    for(int i=0; i<interaction_buf_.size(); ++i){
-      for(int j=0; j<interaction_buf_.at(i).size(); ++j){
-        if((i != 0) && (j = 0))
-          continue;
-        for(int k=0; k<results.size(); ++k){
-          Eigen::Vector3d diff = interaction_buf_.at(i).at(j) - results.at(k);
-          if(diff.norm() < diff_min){
-            results.erase(results.begin() + k);
-          }
-        }
+  if(pre_results_.empty())
+    std::copy(results.begin(), results.end(), std::back_inserter(pre_results_));
+
+  ROS_INFO("                results.size(): %d", results.size());
+  ROS_INFO("                pre_results_.size(): %d", pre_results_.size());
+
+  for(int i=0; i<results.size(); ++i){
+    for(int j=0; j<pre_results_.size(); ++j){
+      Eigen::Vector3d diff = pre_results_.at(j) - results.at(i);
+      if(diff.norm() < diff_min){
+        results.erase(results.begin() + i);
       }
     }
   }
-  if(!hand_recognition_result.empty())
-    return _inhands;
+
+  ROS_INFO("                results.size(): %d", results.size());
 
   if(!found || results.empty())
     return _inhands;
@@ -138,13 +135,16 @@ int watch(int _inhands, int &_nexttask) {
       break;
     }
   }
+  std::copy(results.begin(), results.end(), std::back_inserter(pre_results_));
   visualizeMarker();
   return _inhands;
 };
 
 int put(int _inhands, int &_nexttask) {
-  ROS_INFO("put start: %d", results_buf_.size());
-  Eigen::Vector3d shelf_initial(results_buf_.at(index_).x(), results_buf_.at(index_).y(), results_buf_.at(index_).z());
+  lib_->itemShelfTf(results_buf_);
+
+  
+  Eigen::Vector3d put_pos(results_buf_.at(index_).x(), results_buf_.at(index_).y(), results_buf_.at(index_).z());
 
   aero::Transform obj_pos;
   for(int i=0; i<results_buf_.size(); ++i){
@@ -158,16 +158,19 @@ int put(int _inhands, int &_nexttask) {
 
   Eigen::Vector3d look_pos(0.65, 0.0, 0.50);
 
-  // start tracking object
+
+  ROS_INFO("start tracking mode");
   robot_->setTrackingMode(true);
-  // look at target
   robot_->setLookAt(look_pos, false, true);
-  // start interaction on background
+
+  ROS_INFO("**************start interaction moode");
   planner_->iStart(negomo_lib::jumpSettings(), ws);
 
   ROS_INFO("place coffee reach");
-  robot_->goPos(0, shelf_initial.y(), 0);
-  bool found = lib_->placeCoffeeReach(shelf_initial, 0);
+  robot_->goPos(0, put_pos.y(), 0);
+
+  
+  bool found = lib_->placeCoffeeReach(put_pos, 0);
 
   if (!found) {
     robot_->moveTo("s_shelf_container");
@@ -176,17 +179,17 @@ int put(int _inhands, int &_nexttask) {
   }
   // finish interaction on background
   usleep(10000 * 1000);
-  planner_->iJoin(_inhands, _nexttask); // set next task
+  planner_->iJoin(_inhands, _nexttask);
+  ROS_INFO("**************end interaction moode");
 
   // finish tracking object
   robot_->setTrackingMode(false);
+  ROS_INFO("start tracking mode");
 
   if (_nexttask != -1)
     return lib_->getUsingHandsNum();
 
-  ROS_INFO("open hand");
   lib_->openHand(aero::arm::rarm);
-  ROS_INFO("place coffee return");
   lib_->placeCoffeeReturn();
   lib_->sendResetPose();
 
@@ -278,6 +281,7 @@ int main(int argc, char **argv) {
      std::make_tuple(0, 0, containerPose, planner_->emptyAction, "container"),
      std::make_tuple(0, 1, pick, planner_->emptyAction, "pick"),
      std::make_tuple(0, 1, shelfPose, planner_->emptyAction, "shelf"),
+     std::make_tuple(0, 0, watch, planner_->emptyAction, "watch"),
      std::make_tuple(1, 0, put, planner_->emptyAction, "put"),
      std::make_tuple(0, 0, planner_->loopEnd, planner_->emptyAction, "loop"),
      std::make_tuple(0, 0, planner_->finishTask, planner_->emptyAction, "finishTask"),};
