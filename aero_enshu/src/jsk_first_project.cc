@@ -21,7 +21,7 @@ int index_ = 2;
 Eigen::Vector3d base_diff_;
 double diff_min = 0.15;
 double diff_max = 0.30;
-
+double put_pos_y_offset = -0.03;
 // when entering error
 int error(int _inhands, int &_nexttask) {
   ROS_ERROR("%s", planner_->getBackTrack().c_str());
@@ -30,6 +30,7 @@ int error(int _inhands, int &_nexttask) {
 };
 
 int containerPose(int _inhands, int &_nexttask){
+  ROS_INFO("move to container");
   robot_->moveTo("s_shelf_container");
   while(robot_->isMoving() && ros::ok()){
     usleep(200*1000);
@@ -61,12 +62,9 @@ void visualizeMarker(){
 }
 
 int watchInteraction(int _inhands, int &_nexttask) {
-  ROS_INFO("watchInteraction start: %d", results_buf_.size());
+  ROS_INFO("            watchInteraction start: %d", results_buf_.size());
   // ignore first interaction
   if(interaction_index_ > 0){
-    ROS_INFO("call stopMotion");
-    robot_->stopMotion();
-    ROS_INFO("end stopMotion");
     std::vector<Eigen::Vector3d> tmp_vec;
     for(int i=0; i<index_; ++i){
       tmp_vec.push_back(results_buf_.at(i));
@@ -86,24 +84,36 @@ int watch(int _inhands, int &_nexttask) {
   bool found = lib_->findItem("pie", results);
 
   if(pre_results_.empty())
+    ROS_INFO("pre_results empty");
     std::copy(results.begin(), results.end(), std::back_inserter(pre_results_));
 
-  ROS_INFO("                results.size(): %d", results.size());
-  ROS_INFO("                pre_results_.size(): %d", pre_results_.size());
+  ROS_INFO("results.size(): %d", results.size());
+  ROS_INFO("pre_results_.size(): %d", pre_results_.size());
 
-  for(int i=0; i<results.size(); ++i){
-    for(int j=0; j<pre_results_.size(); ++j){
-      Eigen::Vector3d diff = pre_results_.at(j) - results.at(i);
-      if(diff.norm() < diff_min){
-        results.erase(results.begin() + i);
+  ROS_INFO("interaction_buf_.size(): %d", interaction_buf_.size());
+  if(!interaction_buf_.empty()){
+    for(int i=0; i<results.size(); ++i){
+      for(int j=0; j<pre_results_.size(); ++j){
+        Eigen::Vector3d diff = pre_results_.at(j) - results.at(i);
+        ROS_INFO("diff.norm: %f", diff.norm());
+        if(diff.norm() < diff_min){
+          results.erase(results.begin() + i);
+          ROS_INFO("in loop results.size(): %d", results.size());
+        }
       }
     }
   }
 
-  ROS_INFO("                results.size(): %d", results.size());
+  ROS_INFO("results.size(): %d", results.size());
+  ROS_INFO("pre_results_.size(): %d", pre_results_.size());
 
-  if(!found || results.empty())
+  if(!found || results.empty()){
+    ROS_INFO("!found || results.empty()");
+    ROS_INFO("pre_results_.size(): %d", pre_results_.size());
+    pre_results_.clear();
+    std::copy(results.begin(), results.end(), std::back_inserter(pre_results_));
     return _inhands;
+  }
 
   if(results_buf_.empty()){
     results_buf_.push_back(results.at(0));
@@ -135,7 +145,12 @@ int watch(int _inhands, int &_nexttask) {
       break;
     }
   }
+
+  ROS_INFO("pre_results.clear()");
+  pre_results_.clear();
+  ROS_INFO("pre_results.size(): %d", pre_results_.size());
   std::copy(results.begin(), results.end(), std::back_inserter(pre_results_));
+
   visualizeMarker();
   return _inhands;
 };
@@ -143,7 +158,6 @@ int watch(int _inhands, int &_nexttask) {
 int put(int _inhands, int &_nexttask) {
   lib_->itemShelfTf(results_buf_);
 
-  
   Eigen::Vector3d put_pos(results_buf_.at(index_).x(), results_buf_.at(index_).y(), results_buf_.at(index_).z());
 
   aero::Transform obj_pos;
@@ -166,11 +180,12 @@ int put(int _inhands, int &_nexttask) {
   ROS_INFO("**************start interaction moode");
   planner_->iStart(negomo_lib::jumpSettings(), ws);
 
-  ROS_INFO("place coffee reach");
   robot_->goPos(0, put_pos.y(), 0);
+  put_pos.y() = 0;
 
-  
+  ROS_INFO("            start place coffee reach");
   bool found = lib_->placeCoffeeReach(put_pos, 0);
+  ROS_INFO("            end place coffee reach");
 
   if (!found) {
     robot_->moveTo("s_shelf_container");
@@ -190,7 +205,11 @@ int put(int _inhands, int &_nexttask) {
     return lib_->getUsingHandsNum();
 
   lib_->openHand(aero::arm::rarm);
-  lib_->placeCoffeeReturn();
+  bool flag = lib_->placeCoffeeReturn();
+
+  if(flag)
+    ROS_INFO("end place coffee return");
+
   lib_->sendResetPose();
 
   if(index_ == MAX-1){
@@ -198,7 +217,9 @@ int put(int _inhands, int &_nexttask) {
     planner_->getEntities().put("loopCondition", false);
     return lib_->getUsingHandsNum();
   }
+
   ++index_;
+  ROS_INFO("index_: %d", index_);
   return lib_->getUsingHandsNum();
 };
 
@@ -238,7 +259,10 @@ void returnPlanner(int _target) {
 
 bool preinteractionCb(negomo_enshu::RobotAction::Request &_req,
                       negomo_enshu::RobotAction::Response &_res) {
+  ROS_INFO("start preinteractionCb");
   ROS_INFO("looking for action %s", _req.action.c_str());
+  robot_->stopMotion();
+  ROS_INFO("stop motion");
   pre_[_req.action](_req.target_id);
   return true;
 }
