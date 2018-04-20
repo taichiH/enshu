@@ -92,6 +92,8 @@ namespace aero {
 
   private: void triggerArMarker(bool _trigger);
 
+  public: bool itemShelfTf(std::vector<Eigen::Vector3d> _results);
+
   public: bool adjustShelfArMarker(std::vector<std::string> _markernames={"/shelf_1_marker_link_3", "/shelf_1_marker_link_4", "/shelf_1_marker_link_5"});
 
   private: void arMarkerCallback_(const ar_track_alvar_msgs::AlvarMarkersPtr _msg);
