@@ -91,11 +91,11 @@ int watch(int _inhands, int &_nexttask) {
 
   ROS_INFO("interaction_buf_.size(): %d", interaction_buf_.size());
 
-  for(int i=0; I<results.size(); ++i){
+  for(int i=0; i<results.size(); ++i){
     ROS_INFO("results: %f",results.at(i).y());
   }
 
-  for(int i=0; I<pre_results_.size(); ++i){
+  for(int i=0; i<pre_results_.size(); ++i){
     ROS_INFO("pre_results_: %f", pre_results_.at(i).y());
   }
 
