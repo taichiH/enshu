@@ -80,24 +80,20 @@ int watchInteraction(int _inhands, int &_nexttask) {
   return _inhands;
 }
 
+int watchOnce(int _inhands, int &_nexttask) {
+  ROS_INFO("watch once");
+  lib_->setFCNModel("final");
+  bool found = lib_->findItem("pie", pre_results_);
+  ROS_INFO("pre_results_.size(): %d", pre_results_.size());
+
+  return _inhands;
+}
+
 int watch(int _inhands, int &_nexttask) {
   ROS_INFO("watch start --------------------------");
   lib_->setFCNModel("final");
   std::vector<Eigen::Vector3d> results;
   bool found = lib_->findItem("pie", results);
-
-  if(pre_results_.empty())
-    std::copy(results.begin(), results.end(), std::back_inserter(pre_results_));
-
-  ROS_INFO("interaction_buf_.size(): %d", interaction_buf_.size());
-
-  for(int i=0; i<results.size(); ++i){
-    ROS_INFO("results: %f",results.at(i).y());
-  }
-
-  for(int i=0; i<pre_results_.size(); ++i){
-    ROS_INFO("pre_results_: %f", pre_results_.at(i).y());
-  }
 
   if(!interaction_buf_.empty()){
     for(int i=0; i<results.size(); ++i){
@@ -110,13 +106,8 @@ int watch(int _inhands, int &_nexttask) {
     }
   }
 
-  ROS_INFO("results.size(): %d", results.size());
-  ROS_INFO("results_buf_.size(): %d", results_buf_.size());
-
   if(!found || results.empty()){
     ROS_INFO("!found || results.empty()");
-    pre_results_.clear();
-    std::copy(results.begin(), results.end(), std::back_inserter(pre_results_));
     return _inhands;
   }
 
@@ -126,6 +117,7 @@ int watch(int _inhands, int &_nexttask) {
     return _inhands;
   }
 
+  ROS_INFO("results.size(): %d", results.size());
   for(int i=0; i<results.size(); ++i){
     Eigen::Vector3d diff = results.at(i) - results_buf_.at(0);
     base_diff_ = diff;
@@ -154,7 +146,7 @@ int watch(int _inhands, int &_nexttask) {
       planner_->getEntities().put("loopCondition", false);
       break;
     } else {
-      ROS_INFO("hogehoge");
+      ROS_INFO("nothing");
     }
     ROS_INFO("---------------------------------------------");
   }
@@ -320,6 +312,7 @@ int main(int argc, char **argv) {
      std::make_tuple(0, 1, shelfPose, planner_->emptyAction, "shelf"),
      std::make_tuple(0, 0, watchInteraction, planner_->emptyAction, "interaction"),
      std::make_tuple(0, 0, planner_->loopStart, planner_->emptyAction, "loop"),
+     std::make_tuple(0, 0, watchOnce, planner_->emptyAction, "watchOnce"),
      std::make_tuple(0, 0, watch, planner_->emptyAction, "watch"),
      std::make_tuple(0, 0, planner_->loopEnd, planner_->emptyAction, "loop"),
      std::make_tuple(0, 0, planner_->finishTask, planner_->emptyAction, "finish"),};
