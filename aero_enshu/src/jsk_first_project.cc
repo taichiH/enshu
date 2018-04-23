@@ -20,9 +20,9 @@ int interaction_index_ = 0;
 int index_ = 2;
 int watch_index_ = 0;
 Eigen::Vector3d base_diff_;
-double diff_min = 0.15;
-double diff_max = 0.30;
-double put_pos_y_offset = -0.03;
+const double diff_min = 0.15;
+const double diff_max = 0.27;
+const double put_pos_y_offset = -0.03;
 
 // when entering error
 int error(int _inhands, int &_nexttask) {
@@ -183,7 +183,7 @@ int put(int _inhands, int &_nexttask) {
   robot_->setLookAt(look_pos, false, true);
 
   robot_->goPos(0, put_pos.y(), 0);
-  put_pos.y() = 0;
+  put_pos.y() = put_pos_y_offset;
 
   ROS_INFO("**************start interaction moode");
   planner_->iStart(negomo_lib::jumpSettings(), ws);
@@ -311,8 +311,8 @@ int main(int argc, char **argv) {
     {std::make_tuple(0, 0, planner_->initTask, planner_->emptyAction, "init"),
      std::make_tuple(0, 1, shelfPose, planner_->emptyAction, "shelf"),
      std::make_tuple(0, 0, watchInteraction, planner_->emptyAction, "interaction"),
-     std::make_tuple(0, 0, planner_->loopStart, planner_->emptyAction, "loop"),
      std::make_tuple(0, 0, watchOnce, planner_->emptyAction, "watchOnce"),
+     std::make_tuple(0, 0, planner_->loopStart, planner_->emptyAction, "loop"),
      std::make_tuple(0, 0, watch, planner_->emptyAction, "watch"),
      std::make_tuple(0, 0, planner_->loopEnd, planner_->emptyAction, "loop"),
      std::make_tuple(0, 0, planner_->finishTask, planner_->emptyAction, "finish"),};
