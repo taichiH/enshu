@@ -105,7 +105,6 @@ namespace aero {
   //////////////////////////////////////////////////////////
   bool DevelLib::pickCoffeeFront(Eigen::Vector3d _pos, float _container_height, aero::arm _arm, Eigen::Vector3d _offset) {
     double factor = 0.7;
-
     // open hand
     openHand(_arm);
 
@@ -178,16 +177,6 @@ namespace aero {
     controller_->sendModelAngles(calcPathTime(av, 0.8));
     bool wait_flag = controller_->waitInterpolation(0.1);
 
-    //wait_flag = false means joints is moveing
-    while (!wait_flag) {
-      ROS_INFO("joints moving");
-      if(true){
-        ROS_INFO("     wait_flag = true");
-        controller_->stopMotion();
-      }
-      wait_flag = controller_->waitInterpolation(0.1);
-    }
-
     double factor = 0.8;
 
     tra_.clear();
@@ -204,9 +193,18 @@ namespace aero {
       controller_->goPos(0.0, _offset_y, 0.0);
     }
 
+    flag_mutex.lock();
+    bool flag = interaction_flag;
+    flag_mutex.unlock();
+
     ROS_INFO("> tra size is %d", static_cast<int>(tra_.size()));
-    controller_->sendTrajectory(tra_, calcTrajectoryTimes(tra_, 0.8), aero::ikrange::wholebody);
-    controller_->waitInterpolation();
+    if(!flag){
+      ROS_INFO("flag: %d", static_cast<int>(flag));
+      controller_->sendTrajectory(tra_, calcTrajectoryTimes(tra_, 0.8), aero::ikrange::wholebody);
+      controller_->waitInterpolation();
+    }
+    // usleep(200 * 1000);
+    // controller_->stopMotion();
     return true;
   }
 

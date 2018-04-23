@@ -160,6 +160,10 @@ namespace aero {
 
   private: tf::TransformListener tf_listener_;
 
+  public: bool interaction_flag;
+
+  public: std::mutex flag_mutex;
+    
   };
 
   typedef std::shared_ptr<DevelLib> DevelLibPtr;
