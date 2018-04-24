@@ -22,7 +22,7 @@ int watch_index_ = 0;
 Eigen::Vector3d base_diff_;
 const double diff_min = 0.15;
 const double diff_max = 0.27;
-const double put_pos_y_offset = -0.03;
+const double put_pos_y_offset = -0.0;
 
 // when entering error
 int error(int _inhands, int &_nexttask) {
@@ -32,7 +32,6 @@ int error(int _inhands, int &_nexttask) {
 };
 
 int containerPose(int _inhands, int &_nexttask){
-  ROS_INFO("move to container");
   robot_->moveTo("s_shelf_container");
   while(robot_->isMoving() && ros::ok()){
     usleep(200*1000);
@@ -64,7 +63,6 @@ void visualizeMarker(){
 }
 
 int watchInteraction(int _inhands, int &_nexttask) {
-  ROS_INFO("            watchInteraction start: %d", results_buf_.size());
   // ignore first interaction
   if(interaction_index_ > 0){
     std::vector<Eigen::Vector3d> tmp_vec;
@@ -81,16 +79,12 @@ int watchInteraction(int _inhands, int &_nexttask) {
 }
 
 int watchOnce(int _inhands, int &_nexttask) {
-  ROS_INFO("watch once");
   lib_->setFCNModel("final");
   bool found = lib_->findItem("pie", pre_results_);
-  ROS_INFO("pre_results_.size(): %d", pre_results_.size());
-
   return _inhands;
 }
 
 int watch(int _inhands, int &_nexttask) {
-  ROS_INFO("watch start --------------------------");
   lib_->setFCNModel("final");
   std::vector<Eigen::Vector3d> results;
   bool found = lib_->findItem("pie", results);
@@ -117,15 +111,12 @@ int watch(int _inhands, int &_nexttask) {
     return _inhands;
   }
 
-  ROS_INFO("results.size(): %d", results.size());
   for(int i=0; i<results.size(); ++i){
     Eigen::Vector3d diff = results.at(i) - results_buf_.at(0);
     base_diff_ = diff;
     ROS_INFO("             diff.norm: %f", diff.norm());
-    ROS_INFO("interaction_index_: %d", interaction_index_);
 
     if((diff.norm() > diff_min) && (diff.norm() < diff_max) && (interaction_index_ < 2)){
-      ROS_INFO("-------------------------follow_put");
       results_buf_.push_back(results.at(i));
 
       for(int j=2; j<MAX; ++j){
@@ -135,11 +126,8 @@ int watch(int _inhands, int &_nexttask) {
       planner_->getEntities().put("loopCondition", false);
       break;
     } else if(diff.norm() > diff_max && (interaction_index_ > 1)) {
-      ROS_INFO("-------------------------unfollow_put");
-      ROS_INFO("interaction_index_: %d", interaction_index_);
       Eigen::Vector3d shift_vec = results.at(i) - interaction_buf_.back().at(0);
       base_diff_ = diff;
-      ROS_INFO("shift_vec.x(): %d", shift_vec.x());
       for(int j=0; j<interaction_buf_.back().size(); ++j){
         results_buf_.push_back(interaction_buf_.back().at(j) + shift_vec);
       }
@@ -148,7 +136,6 @@ int watch(int _inhands, int &_nexttask) {
     } else {
       ROS_INFO("nothing");
     }
-    ROS_INFO("---------------------------------------------");
   }
 
   pre_results_.clear();
@@ -196,6 +183,7 @@ int put(int _inhands, int &_nexttask) {
     planner_->setError(true, "failed put");
     _nexttask = -404;
   }
+
   // finish interaction on background
   usleep(10000 * 1000);
   planner_->iJoin(_inhands, _nexttask);
@@ -208,7 +196,7 @@ int put(int _inhands, int &_nexttask) {
 
   // finish tracking object
   robot_->setTrackingMode(false);
-  ROS_INFO("start tracking mode");
+  ROS_INFO("end tracking mode");
 
   if (_nexttask != -1)
     return lib_->getUsingHandsNum();
@@ -240,7 +228,7 @@ int pick(int _inhands, int &_nexttask) {
   if (found){
     robot_->goPos(0, pos_.y(), 0);
     found = lib_->poseAndRecognize("container", "pie", pos_, -0.2);
-    found = lib_->pickCoffeeFront(pos_, 0.83);
+    found = lib_->pickCoffeeFront(pos_, 0.80);
   }
   if (!found) {
     planner_->setBackTrack("failed coffee!");
@@ -322,7 +310,6 @@ int main(int argc, char **argv) {
      std::make_tuple(0, 0, containerPose, planner_->emptyAction, "container"),
      std::make_tuple(0, 1, pick, planner_->emptyAction, "pick"),
      std::make_tuple(0, 1, shelfPose, planner_->emptyAction, "shelf"),
-     std::make_tuple(0, 0, watch, planner_->emptyAction, "watch"),
      std::make_tuple(1, 0, put, planner_->emptyAction, "put"),
      std::make_tuple(0, 0, planner_->loopEnd, planner_->emptyAction, "loop"),
      std::make_tuple(0, 0, planner_->finishTask, planner_->emptyAction, "finishTask"),};
