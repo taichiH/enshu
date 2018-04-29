@@ -22,7 +22,7 @@ int watch_index_ = 0;
 Eigen::Vector3d base_diff_;
 const double diff_min = 0.15;
 const double diff_max = 0.27;
-const double put_pos_y_offset = -0.0;
+const double put_pos_y_offset = -0.03;
 
 // when entering error
 int error(int _inhands, int &_nexttask) {
@@ -111,6 +111,7 @@ int watch(int _inhands, int &_nexttask) {
     return _inhands;
   }
 
+  ROS_INFO("interaction_index_: %d", interaction_index_);
   for(int i=0; i<results.size(); ++i){
     Eigen::Vector3d diff = results.at(i) - results_buf_.at(0);
     base_diff_ = diff;
@@ -131,6 +132,11 @@ int watch(int _inhands, int &_nexttask) {
       for(int j=0; j<interaction_buf_.back().size(); ++j){
         results_buf_.push_back(interaction_buf_.back().at(j) + shift_vec);
       }
+
+      ROS_INFO("           away");
+      planner_->away();
+      planner_->peekout();
+
       planner_->getEntities().put("loopCondition", false);
       break;
     } else {
@@ -141,6 +147,7 @@ int watch(int _inhands, int &_nexttask) {
   pre_results_.clear();
 
   std::copy(results.begin(), results.end(), std::back_inserter(pre_results_));
+  ROS_INFO("visualize marker");
   visualizeMarker();
 
   ++watch_index_;
@@ -193,6 +200,8 @@ int put(int _inhands, int &_nexttask) {
   lib_->flag_mutex.unlock();
 
   ROS_INFO("**************end interaction moode");
+
+
 
   // finish tracking object
   robot_->setTrackingMode(false);
