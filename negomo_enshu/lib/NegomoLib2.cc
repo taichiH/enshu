@@ -261,8 +261,8 @@ bool NegomoBridge2::InteractInInteractiveWI
     intsrv.response.nonext = true; // no results
   }
 
-  away();
-  peekout();
+  // away();
+  // peekout();
   vpWI("during -> finish");
 
   if (intsrv.response.nonext) // task was duplicate or no task from interaction
