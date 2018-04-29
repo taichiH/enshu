@@ -478,8 +478,11 @@ namespace aero {
     return true;
   }
 
+
+
   //////////////////////////////////////////////////////////
   bool DevelLib::adjustShelfArMarker(std::vector<std::string> _markernames) {
+    ROS_INFO("adjustShelfArMarker");
     triggerArMarker(true); // start AR marker
 
     ros::Time now = ros::Time::now();
@@ -520,6 +523,8 @@ namespace aero {
       }
       usleep(100 * 1000);
     }
+
+
     controller_->setRobotStateToCurrentState();
     for (auto it : ar_msg_.markers) // match markers id with reference
       if (ref_markers.find(it.id) != ref_markers.end()) {
@@ -529,6 +534,10 @@ namespace aero {
         indexes.push_back(it.id);
       }
     triggerArMarker(false); // stop AR marker
+
+
+    /*
+
 
     if (static_cast<int>(markers.size()) < 2) {
       ROS_WARN("%s: not enough markers for matching shelf", __FUNCTION__);
@@ -541,6 +550,7 @@ namespace aero {
       globals.push_back(ref_markers.at(i));
       locals.push_back(markers.at(i));
     }
+
 
     // compute transform estimation SVDXY
     Eigen::Vector3d local_com = Eigen::VectorXd::Zero(3);
@@ -579,6 +589,8 @@ namespace aero {
     rot(0,1) = R(0,1);
     rot(1,1) = R(1,1);
 
+
+
     // calc trans
     Eigen::Vector3d trans = global_com - rot * local_com;
 
@@ -603,9 +615,11 @@ namespace aero {
     initialpose.pose.covariance[7] = 0.25;
     initialpose.pose.covariance[35] = 0.06853891945200942;
     initialpose_pub_.publish(initialpose);
-
+    */
     return true;
   }
+
+
 
   void DevelLib::arMarkerCallback_(const ar_track_alvar_msgs::AlvarMarkersPtr _msg) {
     ar_msg_ = *_msg;
