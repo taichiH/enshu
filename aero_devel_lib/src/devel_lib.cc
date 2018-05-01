@@ -491,7 +491,6 @@ namespace aero {
 
     for (auto tmp_name : _markernames) {
       Eigen::Vector3d tmp_position;
-      ROS_INFO("%s: get tf %s", __FUNCTION__, tmp_name.c_str());
       tf::StampedTransform tr;
       try {
         tf_listener_.waitForTransform("/map", tmp_name, ros::Time(0), ros::Duration(3.0));
@@ -513,6 +512,7 @@ namespace aero {
       ref_markers[std::stoi(tmp_name)] = tmp_position;
     }
 
+
     // get markers from cv
     bool marker_found = false;
     for (int i = 0; i < 5; ++i) {
@@ -533,11 +533,8 @@ namespace aero {
         markers[it.id] = features_->convertWorld(tmp_position);
         indexes.push_back(it.id);
       }
-    triggerArMarker(false); // stop AR marker
 
-
-    /*
-
+    // triggerArMarker(false); // stop AR marker
 
     if (static_cast<int>(markers.size()) < 2) {
       ROS_WARN("%s: not enough markers for matching shelf", __FUNCTION__);
@@ -589,8 +586,6 @@ namespace aero {
     rot(0,1) = R(0,1);
     rot(1,1) = R(1,1);
 
-
-
     // calc trans
     Eigen::Vector3d trans = global_com - rot * local_com;
 
@@ -615,7 +610,7 @@ namespace aero {
     initialpose.pose.covariance[7] = 0.25;
     initialpose.pose.covariance[35] = 0.06853891945200942;
     initialpose_pub_.publish(initialpose);
-    */
+
     return true;
   }
 
