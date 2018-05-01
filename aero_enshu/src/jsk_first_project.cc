@@ -21,8 +21,8 @@ int index_ = 2;
 int watch_index_ = 0;
 Eigen::Vector3d base_diff_;
 const double diff_min = 0.15;
-const double diff_max = 0.27;
-const double put_pos_y_offset = -0.03;
+const double diff_max = 0.30;
+const double put_pos_y_offset = -0.05;
 
 // when entering error
 int error(int _inhands, int &_nexttask) {
@@ -41,6 +41,7 @@ int containerPose(int _inhands, int &_nexttask){
 }
 
 int shelfPose(int _inhands, int &_nexttask){
+  ROS_INFO("start shelfPose");
   lib_->lookShelfFront(-0.1);
   robot_->moveTo("s_shelf");
   while(robot_->isMoving() && ros::ok()){
@@ -49,15 +50,17 @@ int shelfPose(int _inhands, int &_nexttask){
   lib_->adjustShelfArMarker();
   robot_->moveTo("s_shelf");
   while(robot_->isMoving() && ros::ok()){
-    usleep(200*1000);
+    usleep(1000*1000);
   }
   return _inhands;
 }
 
 void visualizeMarker(){
+  ROS_INFO("start visualizeMarker");
   aero::Transform obj_pos;
   for(int i=0; i<results_buf_.size(); ++i){
     obj_pos = aero::Translation(results_buf_.at(i));
+    ROS_INFO("visualize each marker");
     lib_->features_->setMarker(obj_pos, i+FEATURES_VARIABLE);
   }
 }
@@ -131,7 +134,11 @@ int watch(int _inhands, int &_nexttask) {
       base_diff_ = diff;
       for(int j=0; j<interaction_buf_.back().size(); ++j){
         results_buf_.push_back(interaction_buf_.back().at(j) + shift_vec);
+       ROS_INFO("results_buf_ element: %f", results_buf_.at(j));
       }
+
+      ROS_INFO("visualize marker");
+      visualizeMarker();
 
       ROS_INFO("           away");
       planner_->away();
@@ -147,8 +154,6 @@ int watch(int _inhands, int &_nexttask) {
   pre_results_.clear();
 
   std::copy(results.begin(), results.end(), std::back_inserter(pre_results_));
-  ROS_INFO("visualize marker");
-  visualizeMarker();
 
   ++watch_index_;
   return _inhands;
@@ -159,31 +164,30 @@ int put(int _inhands, int &_nexttask) {
 
   Eigen::Vector3d put_pos(results_buf_.at(index_).x(), results_buf_.at(index_).y(), results_buf_.at(index_).z());
 
-  aero::Transform obj_pos;
-  for(int i=0; i<results_buf_.size(); ++i){
-    obj_pos = aero::Translation(results_buf_.at(i));
-    lib_->features_->setMarker(obj_pos, i+FEATURES_VARIABLE);
-  }
-
   negomo_lib::waitSettings ws;
   ws.interaction_flag =
     negomo_enshu::PlannerBridgeRequest::Request::IGNORE;
 
   Eigen::Vector3d look_pos(0.65, 0.0, 0.50);
 
-
   ROS_INFO("start tracking mode");
   robot_->setTrackingMode(true);
   robot_->setLookAt(look_pos, false, true);
 
+  lib_->adjustShelfArMarker();
+  robot_->moveTo("s_shelf");
+  while(robot_->isMoving() && ros::ok()){
+    usleep(1000*1000);
+  }
+
+  ROS_INFO("go pos");
+  ROS_INFO("put_pos.y(): %f", put_pos.y());
   robot_->goPos(0, put_pos.y(), 0);
   put_pos.y() = put_pos_y_offset;
 
   ROS_INFO("**************start interaction moode");
   planner_->iStart(negomo_lib::jumpSettings(), ws);
-  ROS_INFO("            start place coffee reach");
   bool found = lib_->placeCoffeeReach(put_pos, 0);
-  ROS_INFO("            end place coffee reach");
 
   if (!found) {
     robot_->moveTo("s_shelf_container");
@@ -200,8 +204,6 @@ int put(int _inhands, int &_nexttask) {
   lib_->flag_mutex.unlock();
 
   ROS_INFO("**************end interaction moode");
-
-
 
   // finish tracking object
   robot_->setTrackingMode(false);
