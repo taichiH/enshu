@@ -19,10 +19,9 @@ std::map<std::string, std::function<void(int)> > pre_;
 int interaction_index_ = 0;
 int index_ = 2;
 int watch_index_ = 0;
-Eigen::Vector3d base_diff_;
 const double diff_min = 0.15;
 const double diff_max = 0.30;
-const double put_pos_y_offset = -0.05;
+const double put_pos_y_offset = 0.0;
 
 // when entering error
 int error(int _inhands, int &_nexttask) {
@@ -53,16 +52,6 @@ int shelfPose(int _inhands, int &_nexttask){
     usleep(1000*1000);
   }
   return _inhands;
-}
-
-void visualizeMarker(){
-  ROS_INFO("start visualizeMarker");
-  aero::Transform obj_pos;
-  for(int i=0; i<results_buf_.size(); ++i){
-    obj_pos = aero::Translation(results_buf_.at(i));
-    ROS_INFO("visualize each marker");
-    lib_->features_->setMarker(obj_pos, i+FEATURES_VARIABLE);
-  }
 }
 
 int watchInteraction(int _inhands, int &_nexttask) {
@@ -114,31 +103,17 @@ int watch(int _inhands, int &_nexttask) {
     return _inhands;
   }
 
-  ROS_INFO("interaction_index_: %d", interaction_index_);
   for(int i=0; i<results.size(); ++i){
     Eigen::Vector3d diff = results.at(i) - results_buf_.at(0);
-    base_diff_ = diff;
-    ROS_INFO("             diff.norm: %f", diff.norm());
+    ROS_INFO("diff.norm: %f", diff.norm());
 
     if((diff.norm() > diff_min) && (diff.norm() < diff_max) && (interaction_index_ < 2)){
-      results_buf_.push_back(results.at(i));
-
-      for(int j=2; j<MAX; ++j){
-        results_buf_.push_back(results_buf_.at(j-1) + diff);
-      }
+      lib_->createResultsBuf(results.at(i), results_buf_, diff, MAX);
 
       planner_->getEntities().put("loopCondition", false);
       break;
     } else if(diff.norm() > diff_max && (interaction_index_ > 1)) {
-      Eigen::Vector3d shift_vec = results.at(i) - interaction_buf_.back().at(0);
-      base_diff_ = diff;
-      for(int j=0; j<interaction_buf_.back().size(); ++j){
-        results_buf_.push_back(interaction_buf_.back().at(j) + shift_vec);
-       ROS_INFO("results_buf_ element: %f", results_buf_.at(j));
-      }
-
-      ROS_INFO("visualize marker");
-      visualizeMarker();
+      lib_->interactionResultsBuf(results.at(i), results_buf_, interaction_buf_);
 
       ROS_INFO("           away");
       planner_->away();
@@ -147,20 +122,39 @@ int watch(int _inhands, int &_nexttask) {
       planner_->getEntities().put("loopCondition", false);
       break;
     } else {
-      ROS_INFO("nothing");
+      ROS_INFO("nothing -----");
     }
   }
 
   pre_results_.clear();
-
   std::copy(results.begin(), results.end(), std::back_inserter(pre_results_));
 
-  ++watch_index_;
   return _inhands;
 };
 
 int put(int _inhands, int &_nexttask) {
-  lib_->itemShelfTf(results_buf_);
+  lib_->setFCNModel("final");
+
+  ROS_INFO("debug -------");
+  ROS_INFO("befpre results_buf_ -------");
+  for(int i=0; i<results_buf_.size(); i++){
+    ROS_INFO("results_buf_.at(%d): %f", i, results_buf_.at(i).y());
+  }
+
+  std::vector<Eigen::Vector3d> results;
+  bool item_found = lib_->findItem("pie", results);
+
+  lib_->createResultsBuf(results, results_buf_, MAX);
+
+  ROS_INFO("after results_buf_ -------");
+  for(int i=0; i<results_buf_.size(); i++){
+    ROS_INFO("results_buf_.at(%d): %f", i, results_buf_.at(i).y());
+  }
+
+  ROS_INFO("results -------");
+  for(int i=0; i<results.size(); i++){
+    ROS_INFO("results.at(%d): %f", i, results.at(i).y());
+  }
 
   Eigen::Vector3d put_pos(results_buf_.at(index_).x(), results_buf_.at(index_).y(), results_buf_.at(index_).z());
 
@@ -174,18 +168,13 @@ int put(int _inhands, int &_nexttask) {
   robot_->setTrackingMode(true);
   robot_->setLookAt(look_pos, false, true);
 
-  lib_->adjustShelfArMarker();
-  robot_->moveTo("s_shelf");
-  while(robot_->isMoving() && ros::ok()){
-    usleep(1000*1000);
-  }
-
   ROS_INFO("go pos");
+  ROS_INFO("index_: %d", index_);
   ROS_INFO("put_pos.y(): %f", put_pos.y());
   robot_->goPos(0, put_pos.y(), 0);
   put_pos.y() = put_pos_y_offset;
 
-  ROS_INFO("**************start interaction moode");
+  ROS_INFO("start interaction moode");
   planner_->iStart(negomo_lib::jumpSettings(), ws);
   bool found = lib_->placeCoffeeReach(put_pos, 0);
 
@@ -203,7 +192,7 @@ int put(int _inhands, int &_nexttask) {
   lib_->interaction_flag = false;
   lib_->flag_mutex.unlock();
 
-  ROS_INFO("**************end interaction moode");
+  ROS_INFO("end interaction moode");
 
   // finish tracking object
   robot_->setTrackingMode(false);
@@ -220,7 +209,6 @@ int put(int _inhands, int &_nexttask) {
 
   lib_->sendResetPose();
 
-  ROS_INFO("index_: %d", index_);
   if(index_ == MAX-1){
     ROS_INFO("put loop end");
     planner_->getEntities().put("loopCondition", false);
