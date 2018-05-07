@@ -42,6 +42,14 @@ namespace aero {
 
   public: bool graspCoffee();
 
+  public: bool createResultsBuf(const Eigen::Vector3d &_result, std::vector<Eigen::Vector3d> &_results_buf, Eigen::Vector3d &_diff, const int &_max);
+
+  public: bool createResultsBuf(std::vector<Eigen::Vector3d> &_results, std::vector<Eigen::Vector3d> &_results_buf, const int &_max);
+
+  public: bool interactionResultsBuf(const Eigen::Vector3d &_result, std::vector<Eigen::Vector3d> &_results_buf, std::vector<std::vector<Eigen::Vector3d>> &_interaction_buf);
+
+  public: bool visualizeMarker(const std::vector<Eigen::Vector3d> &_results_buf);
+
   public: bool placeCoffee(Eigen::Vector3d _pos=Eigen::Vector3d(0.75, -0.25, 1.05), double _offset_y=0.0, aero::arm _arm=aero::arm::rarm);
 
   public: bool placeCoffeeReach(Eigen::Vector3d _pos=Eigen::Vector3d(0.75, -0.25, 1.05), double _offset_y=0.0, aero::arm _arm=aero::arm::rarm);

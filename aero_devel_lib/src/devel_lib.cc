@@ -160,6 +160,67 @@ namespace aero {
   }
 
   //////////////////////////////////////////////////////////
+  bool DevelLib::createResultsBuf(const Eigen::Vector3d &_result, std::vector<Eigen::Vector3d> &_results_buf, Eigen::Vector3d &_diff, const int &_max){
+    ROS_INFO("first teaching");
+    _results_buf.push_back(_result);
+    for(int j=2; j<_max; ++j){
+      _results_buf.push_back(_results_buf.at(j-1) + _diff);
+    }
+    visualizeMarker(_results_buf);
+    return true;
+  }
+
+  //////////////////////////////////////////////////////////
+  bool DevelLib::createResultsBuf(std::vector<Eigen::Vector3d> &_results, std::vector<Eigen::Vector3d> &_results_buf, const int &_max){
+    ROS_INFO("creat results_buf (put mode)");
+
+    _results_buf.clear();
+
+    std::reverse(_results.begin(), _results.end());
+    
+    Eigen::Vector3d diff = _results.back() - _results.at(0);
+    diff = diff / (_results.size() - 1);
+    ROS_INFO("diff.norm (put mode) : %f", diff.norm());
+
+    std::copy(_results.begin(), _results.end(), std::back_inserter(_results_buf));
+
+    if(_results.size() != _max){
+      for(int i=_results.size(); i<_max; ++i){
+        _results_buf.push_back(_results_buf.at(i-1) + diff);
+      }
+    } else {
+      return false;
+    }
+
+    visualizeMarker(_results_buf);
+    return true;
+  }
+
+
+  //////////////////////////////////////////////////////////
+  bool DevelLib::interactionResultsBuf(const Eigen::Vector3d &_result, std::vector<Eigen::Vector3d> &_results_buf, std::vector<std::vector<Eigen::Vector3d>> &_interaction_buf){
+    Eigen::Vector3d shift_vec = _result - _interaction_buf.back().at(0);
+    for(int j=0; j<_interaction_buf.back().size(); ++j){
+      _results_buf.push_back(_interaction_buf.back().at(j) + shift_vec);
+    }
+    visualizeMarker(_results_buf);
+    return true;
+  }
+
+  //////////////////////////////////////////////////////////
+  bool DevelLib::visualizeMarker(const std::vector<Eigen::Vector3d> &_results_buf){
+    const int features_var = 7;
+    ROS_INFO("start visualizeMarker");
+    aero::Transform obj_pos;
+    for(int i=0; i<_results_buf.size(); ++i){
+      obj_pos = aero::Translation(_results_buf.at(i));
+      ROS_INFO("visualize each marker");
+      features_->setMarker(obj_pos, i+features_var);
+    }
+    return true;
+  }
+
+  //////////////////////////////////////////////////////////
   bool DevelLib::placeCoffee(Eigen::Vector3d _pos, double _offset_y, aero::arm _arm) {
     placeCoffeeReach(_pos, _offset_y, _arm);
     openHand(_arm);
@@ -169,7 +230,6 @@ namespace aero {
 
   //////////////////////////////////////////////////////////
   bool DevelLib::placeCoffeeReach(Eigen::Vector3d _pos, double _offset_y, aero::arm _arm) {
-    ROS_INFO("           in devel_lib placeCoffeeReach");
     controller_->setPoseVariables(aero::pose::reset_manip);
     controller_->resetLookAt();
     std::map<aero::joint, double> av;
@@ -471,14 +531,6 @@ namespace aero {
     msg.data = _trigger;
     ar_start_pub_.publish(msg);
   }
-
-  bool DevelLib::itemShelfTf(std::vector<Eigen::Vector3d> _results){
-    std::string shelf = "/shelf_1_marker_link_3";
-    ROS_INFO("create item");
-    return true;
-  }
-
-
 
   //////////////////////////////////////////////////////////
   bool DevelLib::adjustShelfArMarker(std::vector<std::string> _markernames) {
