@@ -21,7 +21,8 @@ int index_ = 2;
 int watch_index_ = 0;
 const double diff_min = 0.15;
 const double diff_max = 0.30;
-const double put_pos_y_offset = 0.0;
+const double put_pos_y_offset = -0.05;
+const double put_pos_z_offset = 0.05;
 
 // when entering error
 int error(int _inhands, int &_nexttask) {
@@ -62,9 +63,8 @@ int watchInteraction(int _inhands, int &_nexttask) {
       tmp_vec.push_back(results_buf_.at(i));
     }
     interaction_buf_.push_back(tmp_vec);
-    auto last_pos = tmp_vec.back();
     results_buf_.clear();
-    results_buf_.push_back(last_pos);
+    results_buf_.push_back(tmp_vec.back());
   }
   ++interaction_index_;
   return _inhands;
@@ -81,6 +81,13 @@ int watch(int _inhands, int &_nexttask) {
   std::vector<Eigen::Vector3d> results;
   bool found = lib_->findItem("pie", results);
 
+
+  // std::sort(results.begin(), results.end(),
+  //           [](const Eigen::Vector3d &left, const Eigen::Vector3d &right){return left.y() > right.y();});
+  // std::sort(pre_results_.begin(), pre_results_.end(),
+  //           [](const Eigen::Vector3d &left, const Eigen::Vector3d &right){return left.y() > right.y();});
+
+  //todo debug
   if(!interaction_buf_.empty()){
     for(int i=0; i<results.size(); ++i){
       for(int j=0; j<pre_results_.size(); ++j){
@@ -119,6 +126,7 @@ int watch(int _inhands, int &_nexttask) {
       planner_->away();
       planner_->peekout();
 
+      //todo debug
       planner_->getEntities().put("loopCondition", false);
       break;
     } else {
@@ -173,10 +181,11 @@ int put(int _inhands, int &_nexttask) {
   ROS_INFO("put_pos.y(): %f", put_pos.y());
   robot_->goPos(0, put_pos.y(), 0);
   put_pos.y() = put_pos_y_offset;
+  put_pos.z() += put_pos_z_offset;
 
   ROS_INFO("start interaction moode");
   planner_->iStart(negomo_lib::jumpSettings(), ws);
-  bool found = lib_->placeCoffeeReach(put_pos, 0);
+  bool found = lib_->placeCoffeeReach(put_pos, 0, aero::arm::larm);
 
   if (!found) {
     robot_->moveTo("s_shelf_container");
@@ -201,7 +210,7 @@ int put(int _inhands, int &_nexttask) {
   if (_nexttask != -1)
     return lib_->getUsingHandsNum();
 
-  lib_->openHand(aero::arm::rarm);
+  lib_->openHand(aero::arm::larm);
   bool flag = lib_->placeCoffeeReturn();
 
   if(flag)
@@ -224,10 +233,12 @@ int pick(int _inhands, int &_nexttask) {
   bool found = lib_->poseAndRecognize("container", "pie", pos_, -0.2);
 
   ROS_INFO("pos_: (%f, %f, %f)", pos_.x(), pos_.y(), pos_.z());
+
   if (found){
     robot_->goPos(0, pos_.y(), 0);
     found = lib_->poseAndRecognize("container", "pie", pos_, -0.2);
-    found = lib_->pickCoffeeFront(pos_, 0.80);
+    pos_.y();
+    found = lib_->pickCoffeeFront((pos_), 0.845, aero::arm::larm);
   }
   if (!found) {
     planner_->setBackTrack("failed coffee!");
@@ -245,9 +256,6 @@ void reactive0(int _target) {
   auto human_face_pos = planner_->getHeadPos(_target);;
   robot_->setLookAt(std::get<0>(human_face_pos), std::get<1>(human_face_pos), std::get<2>(human_face_pos), true, true, false);
   ROS_INFO("in reactive 0");
-  // robot_->stopMotion();
-  // ROS_INFO("stop motion");
-
   lib_->flag_mutex.lock();
   lib_->interaction_flag = true;
   lib_->flag_mutex.unlock();
@@ -302,6 +310,7 @@ int main(int argc, char **argv) {
      std::make_tuple(0, 0, planner_->loopStart, planner_->emptyAction, "loop"),
      std::make_tuple(0, 0, watch, planner_->emptyAction, "watch"),
      std::make_tuple(0, 0, planner_->loopEnd, planner_->emptyAction, "loop"),
+     //todo pick and place after interaction
      std::make_tuple(0, 0, planner_->finishTask, planner_->emptyAction, "finish"),};
   negomo_lib::ActionList task1 =
     {std::make_tuple(0, 0, planner_->initTask, planner_->emptyAction, "init"),
