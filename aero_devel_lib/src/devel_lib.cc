@@ -124,7 +124,7 @@ namespace aero {
     controller_->waitInterpolation();
 
     // grasp
-    bool res = graspCoffee();
+    bool res = graspCoffee(aero::arm::larm);
 
     // unreach
     aero::trajectory tra_back = {tra.at(1), tra.at(0)};
@@ -136,13 +136,13 @@ namespace aero {
   }
 
   //////////////////////////////////////////////////////////
-  bool DevelLib::graspCoffee() {
+  bool DevelLib::graspCoffee(aero::arm _arm) {
 #ifdef DUMMY_MODE
     ROS_INFO("%s: DUMMY_MODE, grasping always returns true", __FUNCTION__);
-      setUsingArm(aero::arm::rarm);
+      setUsingArm(_arm);
     return true;
 #endif
-    controller_->sendGrasp(aero::arm::rarm, 50);
+    controller_->sendGrasp(_arm, 50);
     usleep(500 * 1000);
     controller_->setRobotStateToCurrentState();
     double index = controller_->kinematic_state->getVariablePosition("r_indexbase_joint");
@@ -150,12 +150,12 @@ namespace aero {
     ROS_INFO("%s: index %f", __FUNCTION__, index);
     if (index < 0.05) {
       ROS_INFO("%s: success", __FUNCTION__);
-      setUsingArm(aero::arm::rarm);
+      setUsingArm(_arm);
       return true;
     }
     ROS_WARN("%s: failed", __FUNCTION__);
-    openHand(aero::arm::rarm);
-    unsetUsingArm(aero::arm::rarm);
+    openHand(_arm);
+    unsetUsingArm(_arm);
     return false;
   }
 
@@ -176,8 +176,10 @@ namespace aero {
 
     _results_buf.clear();
 
-    std::reverse(_results.begin(), _results.end());
-    
+    std::sort(_results.begin(), _results.end(),
+              [](const Eigen::Vector3d &left, const Eigen::Vector3d &right){return left.y() > right.y();}
+              );
+
     Eigen::Vector3d diff = _results.back() - _results.at(0);
     diff = diff / (_results.size() - 1);
     ROS_INFO("diff.norm (put mode) : %f", diff.norm());

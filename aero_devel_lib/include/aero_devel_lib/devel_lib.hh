@@ -40,7 +40,7 @@ namespace aero {
   // public: bool pickCoffeeFront(Eigen::Vector3d _pos, float _container_height=0.80, aero::arm _arm=aero::arm::rarm, Eigen::Vector3d _offset=Eigen::Vector3d(0.0, -0.015, 0.0));
   public: bool pickCoffeeFront(Eigen::Vector3d _pos, float _container_height=0.80, aero::arm _arm=aero::arm::rarm, Eigen::Vector3d _offset=Eigen::Vector3d(0.0, -0.0, 0.0));
 
-  public: bool graspCoffee();
+  public: bool graspCoffee(aero::arm _arm=aero::arm::rarm);
 
   public: bool createResultsBuf(const Eigen::Vector3d &_result, std::vector<Eigen::Vector3d> &_results_buf, Eigen::Vector3d &_diff, const int &_max);
 
