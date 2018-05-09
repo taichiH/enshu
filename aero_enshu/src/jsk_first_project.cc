@@ -77,30 +77,22 @@ int watchOnce(int _inhands, int &_nexttask) {
 }
 
 int watch(int _inhands, int &_nexttask) {
+  ROS_INFO("watch ------ ");
   lib_->setFCNModel("final");
   std::vector<Eigen::Vector3d> results;
   bool found = lib_->findItem("pie", results);
 
+  bool new_pos = true;
+  if(!interaction_buf_.empty())
+    new_pos = lib_->getNewPutPos(results, pre_results_);
 
-  // std::sort(results.begin(), results.end(),
-  //           [](const Eigen::Vector3d &left, const Eigen::Vector3d &right){return left.y() > right.y();});
-  // std::sort(pre_results_.begin(), pre_results_.end(),
-  //           [](const Eigen::Vector3d &left, const Eigen::Vector3d &right){return left.y() > right.y();});
-
-  //todo debug
-  if(!interaction_buf_.empty()){
-    for(int i=0; i<results.size(); ++i){
-      for(int j=0; j<pre_results_.size(); ++j){
-        Eigen::Vector3d diff = pre_results_.at(j) - results.at(i);
-        if(diff.norm() < diff_min){
-          results.erase(results.begin() + i);
-        }
-      }
-    }
+  if(!found){
+    ROS_INFO("still watching");
+    return _inhands;
   }
 
-  if(!found || results.empty()){
-    ROS_INFO("!found || results.empty()");
+  if(!new_pos){
+    ROS_INFO("!new_pos");
     return _inhands;
   }
 
@@ -108,6 +100,10 @@ int watch(int _inhands, int &_nexttask) {
     ROS_INFO("results_buf_.empty()");
     results_buf_.push_back(results.at(0));
     return _inhands;
+  }
+
+  for(auto result : results){
+    ROS_INFO("resul.y(): ", result.y());
   }
 
   for(int i=0; i<results.size(); ++i){
