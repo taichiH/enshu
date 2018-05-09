@@ -221,6 +221,27 @@ namespace aero {
     }
     return true;
   }
+  //////////////////////////////////////////////////////////
+  bool DevelLib::getNewPutPos(std::vector<Eigen::Vector3d> &_results, std::vector<Eigen::Vector3d> &_pre_results){
+    std::sort(_results.begin(), _results.end(),
+              [](const Eigen::Vector3d &left, const Eigen::Vector3d &right){return left.y() > right.y();});
+
+    std::sort(_pre_results.begin(), _pre_results.end(),
+              [](const Eigen::Vector3d &left, const Eigen::Vector3d &right){return left.y() > right.y();});
+
+    if(_results.size() == _pre_results.size()){
+      _results.clear();
+      return false;
+    } else{
+      //get nearest x item
+      std::sort(_results.begin(), _results.end(),
+                [](const Eigen::Vector3d &left, const Eigen::Vector3d &right){return left.x() > right.x();});
+      auto tmp = _results.back();
+      _results.clear();
+      _results.push_back(tmp);
+      return true;
+    }
+  }
 
   //////////////////////////////////////////////////////////
   bool DevelLib::placeCoffee(Eigen::Vector3d _pos, double _offset_y, aero::arm _arm) {

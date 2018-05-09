@@ -50,6 +50,8 @@ namespace aero {
 
   public: bool visualizeMarker(const std::vector<Eigen::Vector3d> &_results_buf);
 
+  public: bool getNewPutPos(std::vector<Eigen::Vector3d> &_results, std::vector<Eigen::Vector3d> &_pre_results);
+
   public: bool placeCoffee(Eigen::Vector3d _pos=Eigen::Vector3d(0.75, -0.25, 1.05), double _offset_y=0.0, aero::arm _arm=aero::arm::rarm);
 
   public: bool placeCoffeeReach(Eigen::Vector3d _pos=Eigen::Vector3d(0.75, -0.25, 1.05), double _offset_y=0.0, aero::arm _arm=aero::arm::rarm);
