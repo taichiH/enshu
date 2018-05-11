@@ -86,13 +86,8 @@ int watch(int _inhands, int &_nexttask) {
   if(!interaction_buf_.empty())
     new_pos = lib_->getNewPutPos(results, pre_results_);
 
-  if(!found){
-    ROS_INFO("still watching");
-    return _inhands;
-  }
-
-  if(!new_pos){
-    ROS_INFO("!new_pos");
+  if(!found || !new_pos){
+    ROS_INFO("keep watching --- ");
     return _inhands;
   }
 
@@ -102,9 +97,11 @@ int watch(int _inhands, int &_nexttask) {
     return _inhands;
   }
 
-  for(auto result : results){
-    ROS_INFO("resul.y(): ", result.y());
+  ROS_INFO("----- debug -----");
+  for(result : results){
+    ROS_INFO("result: ", result.x(), result.y(), result.z());
   }
+  ROS_INFO("----- debug -----");
 
   for(int i=0; i<results.size(); ++i){
     Eigen::Vector3d diff = results.at(i) - results_buf_.at(0);
@@ -139,7 +136,6 @@ int watch(int _inhands, int &_nexttask) {
 int put(int _inhands, int &_nexttask) {
   lib_->setFCNModel("final");
 
-  ROS_INFO("debug -------");
   ROS_INFO("befpre results_buf_ -------");
   for(int i=0; i<results_buf_.size(); i++){
     ROS_INFO("results_buf_.at(%d): %f", i, results_buf_.at(i).y());
@@ -172,9 +168,6 @@ int put(int _inhands, int &_nexttask) {
   robot_->setTrackingMode(true);
   robot_->setLookAt(look_pos, false, true);
 
-  ROS_INFO("go pos");
-  ROS_INFO("index_: %d", index_);
-  ROS_INFO("put_pos.y(): %f", put_pos.y());
   robot_->goPos(0, put_pos.y(), 0);
   put_pos.y() = put_pos_y_offset;
   put_pos.z() += put_pos_z_offset;
@@ -228,13 +221,11 @@ int pick(int _inhands, int &_nexttask) {
   lib_->setFCNModel("final");
   bool found = lib_->poseAndRecognize("container", "pie", pos_, -0.2);
 
-  ROS_INFO("pos_: (%f, %f, %f)", pos_.x(), pos_.y(), pos_.z());
-
   if (found){
     robot_->goPos(0, pos_.y(), 0);
     found = lib_->poseAndRecognize("container", "pie", pos_, -0.2);
-    pos_.y();
-    found = lib_->pickCoffeeFront((pos_), 0.845, aero::arm::larm);
+    pos_.y() += 0.02;
+    found = lib_->pickCoffeeFront((pos_), 0.85, aero::arm::larm);
   }
   if (!found) {
     planner_->setBackTrack("failed coffee!");
@@ -268,7 +259,6 @@ void returnPlanner(int _target) {
 
 bool preinteractionCb(negomo_enshu::RobotAction::Request &_req,
                       negomo_enshu::RobotAction::Response &_res) {
-  ROS_INFO("start preinteractionCb");
   ROS_INFO("looking for action %s", _req.action.c_str());
   pre_[_req.action](_req.target_id);
   return true;
@@ -304,6 +294,7 @@ int main(int argc, char **argv) {
      std::make_tuple(0, 0, watchInteraction, planner_->emptyAction, "interaction"),
      std::make_tuple(0, 0, watchOnce, planner_->emptyAction, "watchOnce"),
      std::make_tuple(0, 0, planner_->loopStart, planner_->emptyAction, "loop"),
+     //todo debug end loop implimentation
      std::make_tuple(0, 0, watch, planner_->emptyAction, "watch"),
      std::make_tuple(0, 0, planner_->loopEnd, planner_->emptyAction, "loop"),
      //todo pick and place after interaction
@@ -311,8 +302,8 @@ int main(int argc, char **argv) {
   negomo_lib::ActionList task1 =
     {std::make_tuple(0, 0, planner_->initTask, planner_->emptyAction, "init"),
      std::make_tuple(0, 0, planner_->loopStart, planner_->emptyAction, "loop"),
-     std::make_tuple(0, 0, containerPose, planner_->emptyAction, "container"),
-     std::make_tuple(0, 1, pick, planner_->emptyAction, "pick"),
+     // std::make_tuple(0, 0, containerPose, planner_->emptyAction, "container"),
+     // std::make_tuple(0, 1, pick, planner_->emptyAction, "pick"),
      std::make_tuple(0, 1, shelfPose, planner_->emptyAction, "shelf"),
      std::make_tuple(1, 0, put, planner_->emptyAction, "put"),
      std::make_tuple(0, 0, planner_->loopEnd, planner_->emptyAction, "loop"),
