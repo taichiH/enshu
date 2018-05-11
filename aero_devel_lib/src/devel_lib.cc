@@ -212,11 +212,9 @@ namespace aero {
   //////////////////////////////////////////////////////////
   bool DevelLib::visualizeMarker(const std::vector<Eigen::Vector3d> &_results_buf){
     const int features_var = 7;
-    ROS_INFO("start visualizeMarker");
     aero::Transform obj_pos;
     for(int i=0; i<_results_buf.size(); ++i){
       obj_pos = aero::Translation(_results_buf.at(i));
-      ROS_INFO("visualize each marker");
       features_->setMarker(obj_pos, i+features_var);
     }
     return true;
@@ -235,7 +233,7 @@ namespace aero {
     } else{
       //get nearest x item
       std::sort(_results.begin(), _results.end(),
-                [](const Eigen::Vector3d &left, const Eigen::Vector3d &right){return left.x() > right.x();});
+                [](const Eigen::Vector3d &left, const Eigen::Vector3d &right){return left.x() < right.x();});
       auto tmp = _results.back();
       _results.clear();
       _results.push_back(tmp);
