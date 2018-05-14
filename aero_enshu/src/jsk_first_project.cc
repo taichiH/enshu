@@ -18,7 +18,6 @@ std::vector<std::vector<Eigen::Vector3d>> interaction_buf_;
 std::map<std::string, std::function<void(int)> > pre_;
 int interaction_index_ = 0;
 int index_ = 2;
-int watch_index_ = 0;
 const double diff_min = 0.15;
 const double diff_max = 0.30;
 const double put_pos_y_offset = -0.05;
@@ -58,13 +57,10 @@ int shelfPose(int _inhands, int &_nexttask){
 int watchInteraction(int _inhands, int &_nexttask) {
   // ignore first interaction
   if(interaction_index_ > 0){
-    std::vector<Eigen::Vector3d> tmp_vec;
-    for(int i=0; i<index_; ++i){
-      tmp_vec.push_back(results_buf_.at(i));
-    }
-    interaction_buf_.push_back(tmp_vec);
+    Eigen::Vector3d tmp = results_buf_.back();
+    interaction_buf_.push_back(results_buf_);
     results_buf_.clear();
-    results_buf_.push_back(tmp_vec.back());
+    results_buf_.push_back(tmp);
   }
   ++interaction_index_;
   return _inhands;
@@ -97,12 +93,6 @@ int watch(int _inhands, int &_nexttask) {
     return _inhands;
   }
 
-  ROS_INFO("----- debug -----");
-  for(result : results){
-    ROS_INFO("result: ", result.x(), result.y(), result.z());
-  }
-  ROS_INFO("----- debug -----");
-
   for(int i=0; i<results.size(); ++i){
     Eigen::Vector3d diff = results.at(i) - results_buf_.at(0);
     ROS_INFO("diff.norm: %f", diff.norm());
@@ -112,14 +102,13 @@ int watch(int _inhands, int &_nexttask) {
 
       planner_->getEntities().put("loopCondition", false);
       break;
-    } else if(diff.norm() > diff_max && (interaction_index_ > 1)) {
-      lib_->interactionResultsBuf(results.at(i), results_buf_, interaction_buf_);
+    } else if(diff.norm() > diff_min && (interaction_index_ > 1)) {
+      lib_->interactionResultsBuf(results.at(i), results_buf_, interaction_buf_.back());
 
       ROS_INFO("           away");
       planner_->away();
       planner_->peekout();
 
-      //todo debug
       planner_->getEntities().put("loopCondition", false);
       break;
     } else {
@@ -136,25 +125,11 @@ int watch(int _inhands, int &_nexttask) {
 int put(int _inhands, int &_nexttask) {
   lib_->setFCNModel("final");
 
-  ROS_INFO("befpre results_buf_ -------");
-  for(int i=0; i<results_buf_.size(); i++){
-    ROS_INFO("results_buf_.at(%d): %f", i, results_buf_.at(i).y());
-  }
-
   std::vector<Eigen::Vector3d> results;
   bool item_found = lib_->findItem("pie", results);
 
-  lib_->createResultsBuf(results, results_buf_, MAX);
-
-  ROS_INFO("after results_buf_ -------");
-  for(int i=0; i<results_buf_.size(); i++){
-    ROS_INFO("results_buf_.at(%d): %f", i, results_buf_.at(i).y());
-  }
-
-  ROS_INFO("results -------");
-  for(int i=0; i<results.size(); i++){
-    ROS_INFO("results.at(%d): %f", i, results.at(i).y());
-  }
+  if(interaction_index_ < 2)
+    lib_->createResultsBuf(results, results_buf_, MAX);
 
   Eigen::Vector3d put_pos(results_buf_.at(index_).x(), results_buf_.at(index_).y(), results_buf_.at(index_).z());
 
@@ -190,7 +165,7 @@ int put(int _inhands, int &_nexttask) {
   lib_->interaction_flag = false;
   lib_->flag_mutex.unlock();
 
-  ROS_INFO("end interaction moode");
+  ROS_INFO("end interaction mode");
 
   // finish tracking object
   robot_->setTrackingMode(false);
@@ -207,6 +182,7 @@ int put(int _inhands, int &_nexttask) {
 
   lib_->sendResetPose();
 
+  ROS_INFO("index_: ", index_);
   if(index_ == MAX-1){
     ROS_INFO("put loop end");
     planner_->getEntities().put("loopCondition", false);
