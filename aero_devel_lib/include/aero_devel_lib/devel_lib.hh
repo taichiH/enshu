@@ -46,7 +46,7 @@ namespace aero {
 
   public: bool createResultsBuf(std::vector<Eigen::Vector3d> &_results, std::vector<Eigen::Vector3d> &_results_buf, const int &_max);
 
-  public: bool interactionResultsBuf(const Eigen::Vector3d &_result, std::vector<Eigen::Vector3d> &_results_buf, std::vector<std::vector<Eigen::Vector3d>> &_interaction_buf);
+  public: bool interactionResultsBuf(const Eigen::Vector3d &_result, std::vector<Eigen::Vector3d> &_results_buf, std::vector<Eigen::Vector3d> &_last_buf);
 
   public: bool visualizeMarker(const std::vector<Eigen::Vector3d> &_results_buf);
 

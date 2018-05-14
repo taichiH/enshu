@@ -200,10 +200,11 @@ namespace aero {
 
 
   //////////////////////////////////////////////////////////
-  bool DevelLib::interactionResultsBuf(const Eigen::Vector3d &_result, std::vector<Eigen::Vector3d> &_results_buf, std::vector<std::vector<Eigen::Vector3d>> &_interaction_buf){
-    Eigen::Vector3d shift_vec = _result - _interaction_buf.back().at(0);
-    for(int j=0; j<_interaction_buf.back().size(); ++j){
-      _results_buf.push_back(_interaction_buf.back().at(j) + shift_vec);
+  bool DevelLib::interactionResultsBuf(const Eigen::Vector3d &_result, std::vector<Eigen::Vector3d> &_results_buf, std::vector<Eigen::Vector3d> &_last_buf){
+    _results_buf.clear();
+    Eigen::Vector3d diff = _result -  _last_buf.at(0);
+    for(int i=0; i<_last_buf.size(); ++i){
+      _results_buf.push_back(_last_buf.at(i) + diff);
     }
     visualizeMarker(_results_buf);
     return true;
@@ -230,11 +231,11 @@ namespace aero {
     if(_results.size() == _pre_results.size()){
       _results.clear();
       return false;
-    } else{
+    } else if(_results.size() > _pre_results.size()) {
       //get nearest x item
       std::sort(_results.begin(), _results.end(),
                 [](const Eigen::Vector3d &left, const Eigen::Vector3d &right){return left.x() < right.x();});
-      auto tmp = _results.back();
+      auto tmp = _results.at(0);
       _results.clear();
       _results.push_back(tmp);
       return true;
