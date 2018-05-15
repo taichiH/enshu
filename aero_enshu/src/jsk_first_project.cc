@@ -21,7 +21,12 @@ int index_ = 2;
 const double diff_min = 0.15;
 const double diff_max = 0.30;
 const double put_pos_y_offset = -0.05;
-const double put_pos_z_offset = 0.05;
+const double put_pos_z_offset = 0.04;
+const Eigen::Vector3d put_offset_(0, -0.05, 0.04);
+const Eigen::Vector3d pick_offset_(0, 0.05, 0.0);
+const float lifter_z_ = -0.2;
+const float pick_z_ = 0.845;
+const Eigen::Vector3d look_pos_(0.65, 0.0, 0.50);
 
 // when entering error
 int error(int _inhands, int &_nexttask) {
@@ -57,6 +62,7 @@ int shelfPose(int _inhands, int &_nexttask){
 int watchInteraction(int _inhands, int &_nexttask) {
   // ignore first interaction
   if(interaction_index_ > 0){
+    index_ = 1;
     Eigen::Vector3d tmp = results_buf_.back();
     interaction_buf_.push_back(results_buf_);
     results_buf_.clear();
@@ -83,26 +89,22 @@ int watch(int _inhands, int &_nexttask) {
     new_pos = lib_->getNewPutPos(results, pre_results_);
 
   if(!found || !new_pos){
-    ROS_INFO("keep watching --- ");
     return _inhands;
   }
 
   if(results_buf_.empty()){
-    ROS_INFO("results_buf_.empty()");
     results_buf_.push_back(results.at(0));
     return _inhands;
   }
 
   for(int i=0; i<results.size(); ++i){
     Eigen::Vector3d diff = results.at(i) - results_buf_.at(0);
-    ROS_INFO("diff.norm: %f", diff.norm());
 
-    if((diff.norm() > diff_min) && (diff.norm() < diff_max) && (interaction_index_ < 2)){
+    if(lib_->watchFlag(diff.norm(), diff_min, diff_max, interaction_index_)){
       lib_->createResultsBuf(results.at(i), results_buf_, diff, MAX);
-
       planner_->getEntities().put("loopCondition", false);
       break;
-    } else if(diff.norm() > diff_min && (interaction_index_ > 1)) {
+    } else if(lib_->watchFlag(diff.norm(), diff_min, interaction_index_)) {
       lib_->interactionResultsBuf(results.at(i), results_buf_, interaction_buf_.back());
 
       ROS_INFO("           away");
@@ -137,15 +139,13 @@ int put(int _inhands, int &_nexttask) {
   ws.interaction_flag =
     negomo_enshu::PlannerBridgeRequest::Request::IGNORE;
 
-  Eigen::Vector3d look_pos(0.65, 0.0, 0.50);
-
-  ROS_INFO("start tracking mode");
+  ROS_INFO("--- start tracking mode ---");
   robot_->setTrackingMode(true);
-  robot_->setLookAt(look_pos, false, true);
+  robot_->setLookAt(look_pos_, false, true);
 
   robot_->goPos(0, put_pos.y(), 0);
-  put_pos.y() = put_pos_y_offset;
-  put_pos.z() += put_pos_z_offset;
+  put_pos.y() = put_offset_.y();
+  put_pos.z() += put_offset_.z();
 
   ROS_INFO("start interaction moode");
   planner_->iStart(negomo_lib::jumpSettings(), ws);
@@ -175,14 +175,9 @@ int put(int _inhands, int &_nexttask) {
     return lib_->getUsingHandsNum();
 
   lib_->openHand(aero::arm::larm);
-  bool flag = lib_->placeCoffeeReturn();
-
-  if(flag)
-    ROS_INFO("end place coffee return");
-
+  lib_->placeCoffeeReturn();
   lib_->sendResetPose();
 
-  ROS_INFO("index_: ", index_);
   if(index_ == MAX-1){
     ROS_INFO("put loop end");
     planner_->getEntities().put("loopCondition", false);
@@ -199,12 +194,18 @@ int pick(int _inhands, int &_nexttask) {
 
   if (found){
     robot_->goPos(0, pos_.y(), 0);
-    found = lib_->poseAndRecognize("container", "pie", pos_, -0.2);
-    pos_.y() += 0.02;
-    found = lib_->pickCoffeeFront((pos_), 0.85, aero::arm::larm);
+    found = lib_->poseAndRecognize("container", "pie", pos_, lifter_z_);
+
+    robot_->setTrackingMode(true);
+    robot_->setLookAt(pos_, false, true);
+
+    pos_.y() += pick_offset_.y();
+    found = lib_->pickCoffeeFront((pos_), pick_z_ , aero::arm::larm);
+
+    robot_->setTrackingMode(false);
   }
   if (!found) {
-    planner_->setBackTrack("failed coffee!");
+    planner_->setBackTrack("failed pick!");
     _nexttask = -404;
   }
 
@@ -219,9 +220,11 @@ void reactive0(int _target) {
   auto human_face_pos = planner_->getHeadPos(_target);;
   robot_->setLookAt(std::get<0>(human_face_pos), std::get<1>(human_face_pos), std::get<2>(human_face_pos), true, true, false);
   ROS_INFO("in reactive 0");
+
   lib_->flag_mutex.lock();
   lib_->interaction_flag = true;
   lib_->flag_mutex.unlock();
+
   ROS_INFO("flag is seted");
   robot_->ri->cancel_angle_vector();
   ROS_INFO("cance_angle_vector");
@@ -270,10 +273,8 @@ int main(int argc, char **argv) {
      std::make_tuple(0, 0, watchInteraction, planner_->emptyAction, "interaction"),
      std::make_tuple(0, 0, watchOnce, planner_->emptyAction, "watchOnce"),
      std::make_tuple(0, 0, planner_->loopStart, planner_->emptyAction, "loop"),
-     //todo debug end loop implimentation
      std::make_tuple(0, 0, watch, planner_->emptyAction, "watch"),
      std::make_tuple(0, 0, planner_->loopEnd, planner_->emptyAction, "loop"),
-     //todo pick and place after interaction
      std::make_tuple(0, 0, planner_->finishTask, planner_->emptyAction, "finish"),};
   negomo_lib::ActionList task1 =
     {std::make_tuple(0, 0, planner_->initTask, planner_->emptyAction, "init"),

@@ -1,12 +1,10 @@
 <launch>
   <!-- <arg name="speech_topic" default="/speech"/> -->
   <arg name="speech_topic" default="/windows/voice"/>
-  <arg name="diff_min" default="0.30" />
   <node name="jsk_first_project" pkg="aero_enshu"
         type="jsk_first_project" output="screen">
     <remap from="/windows/voice" to="$(arg speech_topic)"/>
-    <!-- <param name="0.09" value="($arg diff_min)" /> -->
-    <!-- <param name="0.30" value="($arg diff_max)" /> -->
+
   </node>
 
   <node name="simulated_speak" pkg="negomo_enshu"
@@ -18,7 +16,7 @@
         type="interaction.py" output="screen">
     <remap from="/speech" to="$(arg speech_topic)" />
     <param name="time" value="1.0"/>
-    <param name="phrase" value="なんですか"/>
+    <param name="phrase" value="あらたな指示をしてください"/>
     <param name="taskto" value="task2"/>
     <param name="phrase_refuse" value="I cannot interact at the moment."/>
     <param name="time_refuse" value="1.0"/>
