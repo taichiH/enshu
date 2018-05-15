@@ -7,7 +7,7 @@ from negomo_enshu.msg import NegomoTask
 from negomo_enshu.srv import PlannerDefaultInteractionCall, PlannerDefaultInteractionCallResponse
 
 def taskInputCb(req):
-    print 'interactionCb'
+    print '[interaction.py]: interactionCb'
     if req.warn:
         speechpub.publish(phrase_refuse)
         time.sleep(speaktime_refuse)
