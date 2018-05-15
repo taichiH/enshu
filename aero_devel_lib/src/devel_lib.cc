@@ -205,6 +205,7 @@ namespace aero {
     Eigen::Vector3d diff = _result -  _last_buf.at(0);
     for(int i=0; i<_last_buf.size(); ++i){
       _results_buf.push_back(_last_buf.at(i) + diff);
+      ROS_INFO("_results_buf.at(%d): %f, %f, %f", i, _results_buf.at(i).x(), _results_buf.at(i).y(), _results_buf.at(i).z());
     }
     visualizeMarker(_results_buf);
     return true;
@@ -231,7 +232,9 @@ namespace aero {
     if(_results.size() == _pre_results.size()){
       _results.clear();
       return false;
-    } else if(_results.size() > _pre_results.size()) {
+    }
+
+    if(_results.size() > _pre_results.size()) {
       //get nearest x item
       std::sort(_results.begin(), _results.end(),
                 [](const Eigen::Vector3d &left, const Eigen::Vector3d &right){return left.x() < right.x();});
@@ -359,7 +362,6 @@ namespace aero {
 
     //////////////////////////////////////////////////////////
   void DevelLib::lookShelfFront(float _lifter_z) {
-    ROS_INFO("lookShelfFront start");
     controller_->setPoseVariables(aero::pose::reset_manip);
     // controller_->setLifter(0.0, _lifter_z);
     controller_->setLifter(0.05, _lifter_z);
@@ -574,7 +576,6 @@ namespace aero {
 
   //////////////////////////////////////////////////////////
   bool DevelLib::adjustShelfArMarker(std::vector<std::string> _markernames) {
-    ROS_INFO("adjustShelfArMarker");
     triggerArMarker(true); // start AR marker
 
     ros::Time now = ros::Time::now();

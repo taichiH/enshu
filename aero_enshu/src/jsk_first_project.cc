@@ -20,13 +20,11 @@ int interaction_index_ = 0;
 int index_ = 2;
 const double diff_min = 0.15;
 const double diff_max = 0.30;
-const double put_pos_y_offset = -0.05;
-const double put_pos_z_offset = 0.04;
-const Eigen::Vector3d put_offset_(0, -0.05, 0.04);
 const Eigen::Vector3d pick_offset_(0, 0.05, 0.0);
 const float lifter_z_ = -0.2;
 const float pick_z_ = 0.845;
 const Eigen::Vector3d look_pos_(0.65, 0.0, 0.50);
+
 
 // when entering error
 int error(int _inhands, int &_nexttask) {
@@ -56,6 +54,9 @@ int shelfPose(int _inhands, int &_nexttask){
   while(robot_->isMoving() && ros::ok()){
     usleep(1000*1000);
   }
+
+  usleep(1000*5000);
+
   return _inhands;
 }
 
@@ -133,6 +134,9 @@ int put(int _inhands, int &_nexttask) {
   if(interaction_index_ < 2)
     lib_->createResultsBuf(results, results_buf_, MAX);
 
+
+  ROS_INFO("----- put pos ----- debug");
+  ROS_INFO("index_: %d", index_);
   Eigen::Vector3d put_pos(results_buf_.at(index_).x(), results_buf_.at(index_).y(), results_buf_.at(index_).z());
 
   negomo_lib::waitSettings ws;
@@ -143,16 +147,29 @@ int put(int _inhands, int &_nexttask) {
   robot_->setTrackingMode(true);
   robot_->setLookAt(look_pos_, false, true);
 
+
+  ROS_INFO("before goPos y(): %f", put_pos.y());
   robot_->goPos(0, put_pos.y(), 0);
+
+  Eigen::Vector3d put_offset_(0, -0.05, 0.04);
+
+  if((put_pos.y() > -0.1) && (put_pos.y() < 0.1))
+    put_offset_.y() = 0.0;
+
   put_pos.y() = put_offset_.y();
   put_pos.z() += put_offset_.z();
 
-  ROS_INFO("start interaction moode");
+  ROS_INFO("start interaction mode");
   planner_->iStart(negomo_lib::jumpSettings(), ws);
+
+
+
+  ROS_INFO("put_pos (%f, %f, %f)", put_pos.x(), put_pos.y(), put_pos.z());
+  ROS_INFO("----- put pos ----- debug");
   bool found = lib_->placeCoffeeReach(put_pos, 0, aero::arm::larm);
 
   if (!found) {
-    robot_->moveTo("s_shelf_container");
+    robot_->moveTo("s_shelf");
     planner_->setError(true, "failed put");
     _nexttask = -404;
   }
@@ -169,7 +186,7 @@ int put(int _inhands, int &_nexttask) {
 
   // finish tracking object
   robot_->setTrackingMode(false);
-  ROS_INFO("end tracking mode");
+  ROS_INFO("--- end tracking mode ---");
 
   if (_nexttask != -1)
     return lib_->getUsingHandsNum();
