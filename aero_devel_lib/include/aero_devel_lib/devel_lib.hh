@@ -52,6 +52,10 @@ namespace aero {
 
   public: bool getNewPutPos(std::vector<Eigen::Vector3d> &_results, std::vector<Eigen::Vector3d> &_pre_results);
 
+  public: bool watchFlag(const double &_norm, const double &_min, double _max, const int &_index);
+
+  public: bool watchFlag(const double &_norm, const double &_min, const int &_index);
+
   public: bool placeCoffee(Eigen::Vector3d _pos=Eigen::Vector3d(0.75, -0.25, 1.05), double _offset_y=0.0, aero::arm _arm=aero::arm::rarm);
 
   public: bool placeCoffeeReach(Eigen::Vector3d _pos=Eigen::Vector3d(0.75, -0.25, 1.05), double _offset_y=0.0, aero::arm _arm=aero::arm::rarm);

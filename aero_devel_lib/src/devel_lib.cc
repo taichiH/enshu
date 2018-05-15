@@ -243,6 +243,24 @@ namespace aero {
   }
 
   //////////////////////////////////////////////////////////
+  bool DevelLib::watchFlag(const double &_norm, const double &_min, double _max, const int &_index){
+    if((_norm > _min) && (_norm < _max) && (_index < 2)){
+      return true;
+    } else {
+      return false;
+    }
+  }
+
+  //////////////////////////////////////////////////////////
+  bool DevelLib::watchFlag(const double &_norm, const double &_min, const int &_index){
+    if((_norm > _min) && (_index > 1)){
+      return true;
+    } else {
+      return false;
+    }
+  }
+
+  //////////////////////////////////////////////////////////
   bool DevelLib::placeCoffee(Eigen::Vector3d _pos, double _offset_y, aero::arm _arm) {
     placeCoffeeReach(_pos, _offset_y, _arm);
     openHand(_arm);
