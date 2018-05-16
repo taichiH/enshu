@@ -20,7 +20,7 @@ int interaction_index_ = 0;
 int index_ = 2;
 const double diff_min = 0.15;
 const double diff_max = 0.30;
-const Eigen::Vector3d pick_offset_(0, 0.05, 0.0);
+const Eigen::Vector3d pick_offset_(0, -0.05, 0.0);
 const float lifter_z_ = -0.2;
 const float pick_z_ = 0.845;
 const Eigen::Vector3d look_pos_(0.65, 0.0, 0.50);
@@ -147,17 +147,16 @@ int put(int _inhands, int &_nexttask) {
   robot_->setTrackingMode(true);
   robot_->setLookAt(look_pos_, false, true);
 
-
   ROS_INFO("before goPos y(): %f", put_pos.y());
   robot_->goPos(0, put_pos.y(), 0);
 
-  Eigen::Vector3d put_offset_(0, -0.05, 0.04);
+  Eigen::Vector3d put_offset(0, -0.05, 0.04);
 
   if((put_pos.y() > -0.1) && (put_pos.y() < 0.1))
-    put_offset_.y() = 0.0;
+    put_offset.y() = 0.0;
 
-  put_pos.y() = put_offset_.y();
-  put_pos.z() += put_offset_.z();
+  put_pos.y() = put_offset.y();
+  put_pos.z() += put_offset.z();
 
   ROS_INFO("start interaction mode");
   planner_->iStart(negomo_lib::jumpSettings(), ws);
@@ -166,7 +165,10 @@ int put(int _inhands, int &_nexttask) {
 
   ROS_INFO("put_pos (%f, %f, %f)", put_pos.x(), put_pos.y(), put_pos.z());
   ROS_INFO("----- put pos ----- debug");
-  bool found = lib_->placeCoffeeReach(put_pos, 0, aero::arm::larm);
+  int entry_z = 0.30;
+
+  //todo 
+  bool found = lib_->placeCoffeeReach(put_pos, 0, aero::arm::larm, entry_z);
 
   if (!found) {
     robot_->moveTo("s_shelf");
@@ -195,8 +197,16 @@ int put(int _inhands, int &_nexttask) {
   lib_->placeCoffeeReturn();
   lib_->sendResetPose();
 
+  //adjust
+  //todo debug: vector::_M_range_check
+  lib_->adjustPut(results_buf_, index_);
+  lib_->placeCoffeeReturn();
+  lib_->sendResetPose();
+
   if(index_ == MAX-1){
     ROS_INFO("put loop end");
+    planner_->setBackTrack("task finished!");
+    _nexttask = -404;
     planner_->getEntities().put("loopCondition", false);
     return lib_->getUsingHandsNum();
   }
@@ -204,6 +214,12 @@ int put(int _inhands, int &_nexttask) {
   ++index_;
   return lib_->getUsingHandsNum();
 };
+
+int adjustPut(int _inhands, int &_nexttask) {
+  ROS_INFO("adjustPut");
+  return lib_->getUsingHandsNum();
+};
+
 
 int pick(int _inhands, int &_nexttask) {
   lib_->setFCNModel("final");
@@ -296,10 +312,11 @@ int main(int argc, char **argv) {
   negomo_lib::ActionList task1 =
     {std::make_tuple(0, 0, planner_->initTask, planner_->emptyAction, "init"),
      std::make_tuple(0, 0, planner_->loopStart, planner_->emptyAction, "loop"),
-     // std::make_tuple(0, 0, containerPose, planner_->emptyAction, "container"),
-     // std::make_tuple(0, 1, pick, planner_->emptyAction, "pick"),
+     std::make_tuple(0, 0, containerPose, planner_->emptyAction, "container"),
+     std::make_tuple(0, 1, pick, planner_->emptyAction, "pick"),
      std::make_tuple(0, 1, shelfPose, planner_->emptyAction, "shelf"),
      std::make_tuple(1, 0, put, planner_->emptyAction, "put"),
+     std::make_tuple(1, 0, adjustPut, planner_->emptyAction, "adjustPut"),
      std::make_tuple(0, 0, planner_->loopEnd, planner_->emptyAction, "loop"),
      std::make_tuple(0, 0, planner_->finishTask, planner_->emptyAction, "finishTask"),};
 
