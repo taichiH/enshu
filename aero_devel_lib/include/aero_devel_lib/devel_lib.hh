@@ -32,13 +32,19 @@ namespace aero {
 
   public: void speakAsync(const std::string &_speech);
 
-  public: bool makeTopGrasp(const aero::arm _arm, const Eigen::Vector3d _pos, aero::trajectory& _tra);
+  public: bool adjustTrajectory(const aero::arm _arm, std::vector<aero::Transform> &_trajectory, const Eigen::Vector3d _pos, float entry_z);
+
+  public: bool adjustPut(const std::vector<Eigen::Vector3d> &_results_buf, int &_index, aero::arm _arm=aero::arm::rarm, float entry_z=0.0);
+
+  public: bool createTrajectory(const aero::arm _arm, std::vector<aero::Transform> &_tra, const Eigen::Vector3d _pos, float &entry_z);
+
+  public: bool makeTopGrasp(const aero::arm _arm, const Eigen::Vector3d _pos, aero::trajectory& _tra, float &entry_z, bool adjust=false);
 
     // grasp coffee
 
     //with offset
   // public: bool pickCoffeeFront(Eigen::Vector3d _pos, float _container_height=0.80, aero::arm _arm=aero::arm::rarm, Eigen::Vector3d _offset=Eigen::Vector3d(0.0, -0.015, 0.0));
-  public: bool pickCoffeeFront(Eigen::Vector3d _pos, float _container_height=0.80, aero::arm _arm=aero::arm::rarm, Eigen::Vector3d _offset=Eigen::Vector3d(0.0, -0.0, 0.0));
+  public: bool pickCoffeeFront(Eigen::Vector3d _pos, float _container_height=0.80, aero::arm _arm=aero::arm::rarm, Eigen::Vector3d _offset=Eigen::Vector3d(0.0, -0.0, 0.0), float entry_z=0.30);
 
   public: bool graspCoffee(aero::arm _arm=aero::arm::rarm);
 
@@ -58,7 +64,8 @@ namespace aero {
 
   public: bool placeCoffee(Eigen::Vector3d _pos=Eigen::Vector3d(0.75, -0.25, 1.05), double _offset_y=0.0, aero::arm _arm=aero::arm::rarm);
 
-  public: bool placeCoffeeReach(Eigen::Vector3d _pos=Eigen::Vector3d(0.75, -0.25, 1.05), double _offset_y=0.0, aero::arm _arm=aero::arm::rarm);
+  public: bool placeCoffeeReach(Eigen::Vector3d _pos=Eigen::Vector3d(0.75, -0.25, 1.05), double _offset_y=0.0, aero::arm _arm=aero::arm::rarm, float entry_z=0.20);
+
   public: void sendResetPose();
 
   public: bool placeCoffeeReturn();

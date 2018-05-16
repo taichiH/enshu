@@ -44,55 +44,70 @@ namespace aero {
   }
 
   //////////////////////////////////////////////////////////
-  bool DevelLib::makeTopGrasp(const aero::arm _arm, const Eigen::Vector3d _pos, aero::trajectory& _tra) {
+  bool DevelLib::createTrajectory(const aero::arm _arm, std::vector<aero::Transform> &_trajectory, const Eigen::Vector3d _pos, float &entry_z){
+    Eigen::Vector3d offset = {0.0,0.0,0.0};
+
+    int tra_size = 10;
     // diffs
-    Eigen::Vector3d end_diff, mid_diff, mid2_diff, mid3_diff, mid4_diff, entry_diff, offset;
-    end_diff = {0.0 ,0.0, -0.03};
-    mid_diff = {0.0,0.0,0.01};
-    mid2_diff = {-0.02,0.0,0.05};
-    mid3_diff = {-0.05,0.0,0.10};
-    mid4_diff = {-0.075,0.0,0.125};
-    entry_diff = {-0.10,0.0,0.15};
-    offset = {0.0,0.0,0.0};
+    std::vector<Eigen::Vector3d> diff;
+    Eigen::Vector3d entry_diff(0.0, 0.0, entry_z);
+    Eigen::Vector3d end_diff(0.0, 0.0, -0.03);
+
+    diff.push_back(entry_diff);
+    for(int i=1; i<tra_size; ++i){
+      Eigen::Vector3d tmp_diff = {0.0, 0.0, (entry_diff.z() - (i * entry_z / tra_size))};
+      diff.push_back(tmp_diff);
+    }
+    diff.push_back(end_diff);
+    tra_size = diff.size();
 
     // rotations
-    Eigen::Quaterniond end_qua, mid_qua, entry_qua;
-    if(_arm == aero::arm::larm) {
-      end_qua = getRotationQuaternion("y", 45.0 * M_PI / 180.0)
+    std::vector<Eigen::Quaterniond> qua;
+    if(_arm == aero::arm::larm){
+      Eigen::Quaterniond end_qua = getRotationQuaternion("y", 45.0 * M_PI / 180.0)
         * getRotationQuaternion("x", 90.0 * M_PI / 180.0);
-      mid_qua = getRotationQuaternion("y", 45.0 * M_PI / 180.0)
-        * getRotationQuaternion("x", 90.0 * M_PI / 180.0);
-      entry_qua = getRotationQuaternion("x", 90.0 * M_PI / 180.0);
+      qua.push_back(end_qua);
+
+      for(int i=1; i<tra_size; ++i){
+        qua.push_back(end_qua);
+      }
     } else {
-      end_qua = getRotationQuaternion("y", 45.0 * M_PI / 180.0)
+      Eigen::Quaterniond end_qua = getRotationQuaternion("y", 45.0 * M_PI / 180.0)
         * getRotationQuaternion("x", -90.0 * M_PI / 180.0);
-      mid_qua = getRotationQuaternion("y", 45.0 * M_PI / 180.0)
-        * getRotationQuaternion("x", -90.0 * M_PI / 180.0);
-      entry_qua = getRotationQuaternion("x", -90.0 * M_PI / 180.0);
+      qua.push_back(end_qua);
+
+      for(int i=1; i<qua.size(); ++i){
+        qua.push_back(end_qua);
+      }
     }
 
-    aero::Transform end_pose, mid_pose, mid2_pose, mid3_pose, mid4_pose, entry_pose;
-    end_pose = aero::Translation(_pos + offset + end_diff) * end_qua;
-    mid_pose = aero::Translation(_pos + offset + mid_diff) * mid_qua;
-    mid2_pose = aero::Translation(_pos + offset + mid2_diff) * mid_qua;
-    mid3_pose = aero::Translation(_pos + offset + mid3_diff) * mid_qua;
-    mid4_pose = aero::Translation(_pos + offset + mid4_diff) * mid_qua;
-    entry_pose = aero::Translation(_pos + offset + entry_diff) * entry_qua;
-    features_->setMarker(entry_pose, 1);
-    features_->setMarker(mid_pose, 2);
-    features_->setMarker(mid2_pose, 3);
-    features_->setMarker(mid3_pose, 4);
-    features_->setMarker(mid4_pose, 5);
-    features_->setMarker(end_pose, 6);
-    ROS_WARN("entry: x:%f y:%f z:%f", entry_pose.translation().x(), entry_pose.translation().y(), entry_pose.translation().z());
-    ROS_WARN("mid  : x:%f y:%f z:%f", mid_pose.translation().x(), mid_pose.translation().y(), mid_pose.translation().z());
-    ROS_WARN("mid2  : x:%f y:%f z:%f", mid2_pose.translation().x(), mid2_pose.translation().y(), mid2_pose.translation().z());
-    ROS_WARN("mid3  : x:%f y:%f z:%f", mid3_pose.translation().x(), mid3_pose.translation().y(), mid3_pose.translation().z());
-    ROS_WARN("mid4  : x:%f y:%f z:%f", mid4_pose.translation().x(), mid4_pose.translation().y(), mid4_pose.translation().z());
-    ROS_WARN("end  : x:%f y:%f z:%f", end_pose.translation().x(), end_pose.translation().y(), end_pose.translation().z());
+    //pose
+    for(int i=0; i<tra_size; ++i){
+      aero::Transform tmp_pose = aero::Translation(_pos + offset + diff.at(i)) * qua.at(i);
+      _trajectory.push_back(tmp_pose);
+    }
 
+    return true;
+  }
+
+  //////////////////////////////////////////////////////////
+  bool DevelLib::makeTopGrasp(const aero::arm _arm, const Eigen::Vector3d _pos, aero::trajectory& _tra, float &entry_z, bool adjust) {
+    std::vector<aero::Transform> trajectory;
+
+    //todo std::function inplementation to choose any trajectory function
+    if(adjust){
+      bool trajectory_flag = adjustTrajectory(_arm, trajectory, _pos, 0.0);
+    } else {
+      //todo debug: not create trajectory
+      bool trajectory_flag = createTrajectory(_arm, trajectory, _pos, entry_z);
+    }
+    
+    for(int i=0; i<trajectory.size(); ++i){
+      ROS_INFO("trajectory:(%f, %f, %f)", trajectory.at(i).translation().x(), trajectory.at(i).translation().y(), trajectory.at(i).translation().z());
+      features_->setMarker(trajectory.at(i), i+1);
+    }
     aero::trajectory tra;
-    bool res = fastestTrajectory3(_arm, {entry_pose, mid4_pose, mid3_pose, mid2_pose, mid_pose, end_pose}, aero::eef::pick, tra);
+    bool res = fastestTrajectory3(_arm, trajectory, aero::eef::pick, tra);
     if (!res) {
       ROS_INFO("%s: ik failed", __FUNCTION__);
       return false;
@@ -103,7 +118,7 @@ namespace aero {
   }
 
   //////////////////////////////////////////////////////////
-  bool DevelLib::pickCoffeeFront(Eigen::Vector3d _pos, float _container_height, aero::arm _arm, Eigen::Vector3d _offset) {
+  bool DevelLib::pickCoffeeFront(Eigen::Vector3d _pos, float _container_height, aero::arm _arm, Eigen::Vector3d _offset, float entry_z) {
     double factor = 0.7;
     // open hand
     openHand(_arm);
@@ -113,7 +128,7 @@ namespace aero {
     Eigen::Vector3d pos = _pos + _offset;
     pos.z() = _container_height;
 
-    bool ik_res = makeTopGrasp(_arm, pos, tra);
+    bool ik_res = makeTopGrasp(_arm, pos, tra, entry_z);
     if(!ik_res) {
       ROS_INFO("%s:ik failed", __FUNCTION__);
       return false;
@@ -264,6 +279,77 @@ namespace aero {
   }
 
   //////////////////////////////////////////////////////////
+  bool DevelLib::adjustTrajectory(const aero::arm _arm, std::vector<aero::Transform> &_trajectory, const Eigen::Vector3d _pos, float entry_z){
+    Eigen::Vector3d offset = {0.0,0.0,0.0};
+
+    int tra_size = 10;
+    // diffs
+    std::vector<Eigen::Vector3d> diff;
+    Eigen::Vector3d entry_diff(0.10, 0.0, entry_z);
+    Eigen::Vector3d end_diff(-0.10, 0.0, 0.00);
+
+    diff.push_back(entry_diff);
+    for(int i=1; i<tra_size; ++i){
+      Eigen::Vector3d tmp_diff = {(entry_diff.x() - (i * (entry_diff.x() - end_diff.x()) / tra_size)), 0.0, 0.0};
+      diff.push_back(tmp_diff);
+    }
+    diff.push_back(end_diff);
+    tra_size = diff.size();
+
+    // rotations
+    std::vector<Eigen::Quaterniond> qua;
+    if(_arm == aero::arm::larm){
+      Eigen::Quaterniond end_qua = getRotationQuaternion("y", 45.0 * M_PI / 180.0)
+        * getRotationQuaternion("x", 90.0 * M_PI / 180.0);
+      qua.push_back(end_qua);
+
+      for(int i=1; i<tra_size; ++i){
+        qua.push_back(end_qua);
+      }
+    } else {
+      Eigen::Quaterniond end_qua = getRotationQuaternion("y", 45.0 * M_PI / 180.0)
+        * getRotationQuaternion("x", -90.0 * M_PI / 180.0);
+      qua.push_back(end_qua);
+
+      for(int i=1; i<qua.size(); ++i){
+        qua.push_back(end_qua);
+      }
+    }
+
+    //pose
+    for(int i=0; i<tra_size; ++i){
+      aero::Transform tmp_pose = aero::Translation(_pos + offset + diff.at(i)) * qua.at(i);
+      _trajectory.push_back(tmp_pose);
+    }
+
+    return true;
+  }
+
+
+  //////////////////////////////////////////////////////////
+  bool DevelLib::adjustPut(const std::vector<Eigen::Vector3d> &_results_buf, int &_index, aero::arm _arm, float entry_z) {
+    controller_->setPoseVariables(aero::pose::reset_manip);
+    controller_->resetLookAt();
+    std::map<aero::joint, double> av;
+    controller_->getRobotStateVariables(av);
+    controller_->sendModelAngles(calcPathTime(av, 0.8));
+    bool wait_flag = controller_->waitInterpolation(0.1);
+
+    tra_.clear();
+    // make trajectory
+    bool res = makeTopGrasp(_arm, _results_buf.at(_index), tra_, entry_z, true);
+
+    if (!res) {
+      ROS_WARN("%s: place ik failed", __FUNCTION__);
+      return false;
+    }
+
+    ROS_INFO("> tra size is %d", static_cast<int>(tra_.size()));
+
+    return true;
+  }
+
+  //////////////////////////////////////////////////////////
   bool DevelLib::placeCoffee(Eigen::Vector3d _pos, double _offset_y, aero::arm _arm) {
     placeCoffeeReach(_pos, _offset_y, _arm);
     openHand(_arm);
@@ -272,7 +358,7 @@ namespace aero {
   }
 
   //////////////////////////////////////////////////////////
-  bool DevelLib::placeCoffeeReach(Eigen::Vector3d _pos, double _offset_y, aero::arm _arm) {
+  bool DevelLib::placeCoffeeReach(Eigen::Vector3d _pos, double _offset_y, aero::arm _arm, float entry_z) {
     controller_->setPoseVariables(aero::pose::reset_manip);
     controller_->resetLookAt();
     std::map<aero::joint, double> av;
@@ -284,7 +370,7 @@ namespace aero {
 
     tra_.clear();
     // make trajectory
-    bool res = makeTopGrasp(_arm, _pos, tra_);
+    bool res = makeTopGrasp(_arm, _pos, tra_, entry_z);
 
     if (!res) {
       ROS_WARN("%s: place ik failed", __FUNCTION__);
