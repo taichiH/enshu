@@ -90,15 +90,15 @@ namespace aero {
     return true;
   }
 
+
   //////////////////////////////////////////////////////////
   bool DevelLib::makeTopGrasp(const aero::arm _arm, const Eigen::Vector3d _pos, aero::trajectory& _tra, float &entry_z, bool adjust) {
     std::vector<aero::Transform> trajectory;
 
-    //todo std::function inplementation to choose any trajectory function
+    // todo std::function inplementation to choose any trajectory function
     if(adjust){
       bool trajectory_flag = adjustTrajectory(_arm, trajectory, _pos, 0.0);
     } else {
-      //todo debug: not create trajectory
       bool trajectory_flag = createTrajectory(_arm, trajectory, _pos, entry_z);
     }
     
@@ -181,6 +181,7 @@ namespace aero {
     for(int j=2; j<_max; ++j){
       _results_buf.push_back(_results_buf.at(j-1) + _diff);
     }
+    std::copy(_results_buf.begin(), _results_buf.end(), std::back_inserter(display_difiner));
     visualizeMarker(_results_buf);
     return true;
   }
@@ -281,20 +282,40 @@ namespace aero {
   //////////////////////////////////////////////////////////
   bool DevelLib::adjustTrajectory(const aero::arm _arm, std::vector<aero::Transform> &_trajectory, const Eigen::Vector3d _pos, float entry_z){
     Eigen::Vector3d offset = {0.0,0.0,0.0};
+    int tra_size = 20;
 
-    int tra_size = 10;
-    // diffs
+    // diff
     std::vector<Eigen::Vector3d> diff;
-    Eigen::Vector3d entry_diff(0.10, 0.0, entry_z);
-    Eigen::Vector3d end_diff(-0.10, 0.0, 0.00);
+
+    Eigen::Vector3d pre_entry_diff;
+    pre_entry_diff.x() = _pos.x();
+    pre_entry_diff.y() = _pos.y() + 0.30;
+    pre_entry_diff.z() =  _pos.z() + 0.20;
+
+    Eigen::Vector3d entry_diff;
+    entry_diff.x() = _pos.x();
+    entry_diff.y() = _pos.y() + 0.30;
+    entry_diff.z() = _pos.z() + 0.05;
+
+    Eigen::Vector3d end_diff;
+    end_diff.x() = _pos.x();
+    end_diff.y() = _pos.y() - 0.26;
+    end_diff.z() = _pos.z() + 0.05;
+
+    // redefine entry and end diff at _pos coordinate
+    entry_diff = entry_diff - _pos;
+    end_diff = end_diff - _pos;
+
+    // Eigen::Vector3d adjust_tra = end_diff - entry_diff;
+
+    float trajectory_diff = (entry_diff.y() - end_diff.y())  / tra_size;
+    ROS_INFO("trajectory_diff: %f", trajectory_diff);
 
     diff.push_back(entry_diff);
     for(int i=1; i<tra_size; ++i){
-      Eigen::Vector3d tmp_diff = {(entry_diff.x() - (i * (entry_diff.x() - end_diff.x()) / tra_size)), 0.0, 0.0};
+      Eigen::Vector3d tmp_diff = {0.0, (entry_diff.y() - (i * trajectory_diff)), entry_diff.z()};
       diff.push_back(tmp_diff);
     }
-    diff.push_back(end_diff);
-    tra_size = diff.size();
 
     // rotations
     std::vector<Eigen::Quaterniond> qua;
@@ -311,10 +332,14 @@ namespace aero {
         * getRotationQuaternion("x", -90.0 * M_PI / 180.0);
       qua.push_back(end_qua);
 
-      for(int i=1; i<qua.size(); ++i){
+      for(int i=1; i<tra_size; ++i){
         qua.push_back(end_qua);
       }
     }
+
+    ROS_INFO("diff.size(): %d", static_cast<int>(diff.size()));
+    ROS_INFO("qua.size(): %d", static_cast<int>(qua.size()));
+    ROS_INFO("tra_size: %d", tra_size);
 
     //pose
     for(int i=0; i<tra_size; ++i){
@@ -336,9 +361,9 @@ namespace aero {
     bool wait_flag = controller_->waitInterpolation(0.1);
 
     tra_.clear();
+
     // make trajectory
     bool res = makeTopGrasp(_arm, _results_buf.at(_index), tra_, entry_z, true);
-
     if (!res) {
       ROS_WARN("%s: place ik failed", __FUNCTION__);
       return false;
@@ -630,6 +655,25 @@ namespace aero {
   //////////////////////////////////////////////////////////
   void DevelLib::fcnCallback_(const aero_recognition_msgs::LabeledPoseArray::ConstPtr _msg) {
     fcn_msg_ = *_msg;
+
+    ROS_INFO("send tf of results_buf");
+    tf::Quaternion quat(0, 0, 0, 1);
+    int index = 0;
+    for (auto box : fcn_msg_.poses) {
+      for(int j=0; j<10; j++){
+        static tf::TransformBroadcaster br;
+        tf::Transform transform;
+        transform.setOrigin(tf::Vector3(box.pose.position.x,
+                                        box.pose.position.y,
+                                        box.pose.position.z));
+        transform.setRotation(quat);
+        std::string parent = "waist_link";
+        std::string child_frame = "fcn_item"+std::to_string(index);
+        br.sendTransform(tf::StampedTransform(transform, ros::Time::now(), parent, child_frame));
+        ros::Duration(0.001).sleep();
+      }
+      index++;
+    }
   }
 
   //////////////////////////////////////////////////////////

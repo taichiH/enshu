@@ -13,6 +13,8 @@
 #include <aero_recognition_msgs/Scored2DBoxArray.h>
 #include <aero_recognition_msgs/Scored2DBox.h>
 #include <tf/transform_listener.h>
+#include <tf/transform_broadcaster.h>
+#include <tf2_ros/transform_listener.h>
 #include <ar_track_alvar_msgs/AlvarMarkers.h>
 #include <geometry_msgs/PoseWithCovarianceStamped.h>
 
@@ -37,6 +39,8 @@ namespace aero {
   public: bool adjustPut(const std::vector<Eigen::Vector3d> &_results_buf, int &_index, aero::arm _arm=aero::arm::rarm, float entry_z=0.0);
 
   public: bool createTrajectory(const aero::arm _arm, std::vector<aero::Transform> &_tra, const Eigen::Vector3d _pos, float &entry_z);
+
+  public: bool sendPosTf(const std::vector<Eigen::Vector3d> &_results_buf);
 
   public: bool makeTopGrasp(const aero::arm _arm, const Eigen::Vector3d _pos, aero::trajectory& _tra, float &entry_z, bool adjust=false);
 
@@ -184,7 +188,13 @@ namespace aero {
   public: bool interaction_flag;
 
   public: std::mutex flag_mutex;
-    
+
+  public: tf::TransformListener* listener_ptr;
+
+  public: tf2_ros::Buffer* tf_buffer;
+
+  public: std::vector<Eigen::Vector3d> display_difiner;
+
   };
 
   typedef std::shared_ptr<DevelLib> DevelLibPtr;
