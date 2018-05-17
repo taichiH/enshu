@@ -30,5 +30,5 @@
   <!--    <rosparam file="$(find negomo_enshu)/config/negomo.yaml" -->
   <!--              command="load"/> -->
   <!-- </node> -->
-  <node name="rqt_logger_level" pkg="rqt_logger_level" type="rqt_logger_level" />
+  <!-- <node name="rqt_logger_level" pkg="rqt_logger_level" type="rqt_logger_level" /> -->
 </launch>

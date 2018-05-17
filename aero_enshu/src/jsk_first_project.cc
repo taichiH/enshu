@@ -55,7 +55,7 @@ int shelfPose(int _inhands, int &_nexttask){
     usleep(1000*1000);
   }
 
-  usleep(1000*5000);
+  usleep(1000*3500);
 
   return _inhands;
 }
@@ -134,20 +134,15 @@ int put(int _inhands, int &_nexttask) {
   if(interaction_index_ < 2)
     lib_->createResultsBuf(results, results_buf_, MAX);
 
-
-  ROS_INFO("----- put pos ----- debug");
-  ROS_INFO("index_: %d", index_);
   Eigen::Vector3d put_pos(results_buf_.at(index_).x(), results_buf_.at(index_).y(), results_buf_.at(index_).z());
 
   negomo_lib::waitSettings ws;
   ws.interaction_flag =
     negomo_enshu::PlannerBridgeRequest::Request::IGNORE;
 
-  ROS_INFO("--- start tracking mode ---");
   robot_->setTrackingMode(true);
   robot_->setLookAt(look_pos_, false, true);
 
-  ROS_INFO("before goPos y(): %f", put_pos.y());
   robot_->goPos(0, put_pos.y(), 0);
 
   Eigen::Vector3d put_offset(0, -0.05, 0.04);
@@ -158,17 +153,12 @@ int put(int _inhands, int &_nexttask) {
   put_pos.y() = put_offset.y();
   put_pos.z() += put_offset.z();
 
-  ROS_INFO("start interaction mode");
+  ROS_INFO("--- start interaction mode ---");
   planner_->iStart(negomo_lib::jumpSettings(), ws);
 
+  // lib_->sendPosTf(results_buf_);
 
-
-  ROS_INFO("put_pos (%f, %f, %f)", put_pos.x(), put_pos.y(), put_pos.z());
-  ROS_INFO("----- put pos ----- debug");
-  int entry_z = 0.30;
-
-  //todo 
-  bool found = lib_->placeCoffeeReach(put_pos, 0, aero::arm::larm, entry_z);
+  bool found = lib_->placeCoffeeReach(put_pos, 0, aero::arm::larm, 0.20);
 
   if (!found) {
     robot_->moveTo("s_shelf");
@@ -184,11 +174,10 @@ int put(int _inhands, int &_nexttask) {
   lib_->interaction_flag = false;
   lib_->flag_mutex.unlock();
 
-  ROS_INFO("end interaction mode");
+  ROS_INFO("--- end interaction mode ---");
 
   // finish tracking object
   robot_->setTrackingMode(false);
-  ROS_INFO("--- end tracking mode ---");
 
   if (_nexttask != -1)
     return lib_->getUsingHandsNum();
@@ -198,7 +187,6 @@ int put(int _inhands, int &_nexttask) {
   lib_->sendResetPose();
 
   //adjust
-  //todo debug: vector::_M_range_check
   lib_->adjustPut(results_buf_, index_);
   lib_->placeCoffeeReturn();
   lib_->sendResetPose();
@@ -212,11 +200,6 @@ int put(int _inhands, int &_nexttask) {
   }
 
   ++index_;
-  return lib_->getUsingHandsNum();
-};
-
-int adjustPut(int _inhands, int &_nexttask) {
-  ROS_INFO("adjustPut");
   return lib_->getUsingHandsNum();
 };
 
@@ -312,11 +295,10 @@ int main(int argc, char **argv) {
   negomo_lib::ActionList task1 =
     {std::make_tuple(0, 0, planner_->initTask, planner_->emptyAction, "init"),
      std::make_tuple(0, 0, planner_->loopStart, planner_->emptyAction, "loop"),
-     std::make_tuple(0, 0, containerPose, planner_->emptyAction, "container"),
-     std::make_tuple(0, 1, pick, planner_->emptyAction, "pick"),
+     // std::make_tuple(0, 0, containerPose, planner_->emptyAction, "container"),
+     // std::make_tuple(0, 1, pick, planner_->emptyAction, "pick"),
      std::make_tuple(0, 1, shelfPose, planner_->emptyAction, "shelf"),
      std::make_tuple(1, 0, put, planner_->emptyAction, "put"),
-     std::make_tuple(1, 0, adjustPut, planner_->emptyAction, "adjustPut"),
      std::make_tuple(0, 0, planner_->loopEnd, planner_->emptyAction, "loop"),
      std::make_tuple(0, 0, planner_->finishTask, planner_->emptyAction, "finishTask"),};
 
