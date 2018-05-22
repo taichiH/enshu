@@ -296,8 +296,8 @@ int main(int argc, char **argv) {
   negomo_lib::ActionList task1 =
     {std::make_tuple(0, 0, planner_->initTask, planner_->emptyAction, "init"),
      std::make_tuple(0, 0, planner_->loopStart, planner_->emptyAction, "loop"),
-     // std::make_tuple(0, 0, containerPose, planner_->emptyAction, "container"),
-     // std::make_tuple(0, 1, pick, planner_->emptyAction, "pick"),
+     std::make_tuple(0, 0, containerPose, planner_->emptyAction, "container"),
+     std::make_tuple(0, 1, pick, planner_->emptyAction, "pick"),
      std::make_tuple(0, 1, shelfPose, planner_->emptyAction, "shelf"),
      std::make_tuple(1, 0, put, planner_->emptyAction, "put"),
      std::make_tuple(0, 0, planner_->loopEnd, planner_->emptyAction, "loop"),
