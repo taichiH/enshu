@@ -44,7 +44,7 @@ namespace aero {
 
   public: bool setBothArm(aero::Transform &_r_arm, aero::Transform &_l_arm);
 
-  public: bool visualServo(aero::Vector3 &_pos, double &_offset);
+  public: bool visualServo(aero::Vector3 &_pos, double &_offset, aero::arm _arm=aero::arm::both_arms);
 
   public: bool createResultsBuf(const Eigen::Vector3d &_result, std::vector<Eigen::Vector3d> &_results_buf, Eigen::Vector3d &_diff, const int &_max);
 
