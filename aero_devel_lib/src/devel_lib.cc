@@ -136,6 +136,27 @@ namespace aero {
   }
 
   //////////////////////////////////////////////////////////
+  bool DevelLib::setBothArm(aero::Transform &_r_pose, aero::Transform &_l_pose){
+    bool r_ik_result = controller_->setFromIK(aero::arm::rarm, aero::ikrange::wholebody, _r_pose, aero::eef::grasp);
+    bool l_ik_result = controller_->setFromIK(aero::arm::larm, aero::ikrange::arm, _l_pose, aero::eef::grasp);
+
+    if(r_ik_result)
+      ROS_WARN("r_ik: true");
+    if(l_ik_result)
+      ROS_WARN("l_ik: true");
+
+    if (r_ik_result && l_ik_result) {
+      ROS_INFO("dual arm ik success !");
+      std::map<aero::joint, double> av;
+      controller_->getRobotStateVariables(av);
+      controller_->sendModelAngles(calcPathTime(av, 0.8));
+      controller_->waitInterpolation();
+    } else {
+      ROS_WARN("ik failed");
+    }
+  }
+
+  //////////////////////////////////////////////////////////
   bool DevelLib::graspCoffee(aero::arm _arm) {
 #ifdef DUMMY_MODE
     ROS_INFO("%s: DUMMY_MODE, grasping always returns true", __FUNCTION__);

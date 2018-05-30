@@ -42,6 +42,8 @@ namespace aero {
 
   public: bool graspCoffee(aero::arm _arm=aero::arm::rarm);
 
+  public: bool setBothArm(aero::Transform &_r_arm, aero::Transform &_l_arm);
+
   public: bool createResultsBuf(const Eigen::Vector3d &_result, std::vector<Eigen::Vector3d> &_results_buf, Eigen::Vector3d &_diff, const int &_max);
 
   public: bool createResultsBuf(std::vector<Eigen::Vector3d> &_results, std::vector<Eigen::Vector3d> &_results_buf, const int &_max);
