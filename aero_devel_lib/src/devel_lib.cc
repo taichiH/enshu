@@ -136,6 +136,34 @@ namespace aero {
   }
 
   //////////////////////////////////////////////////////////
+  bool DevelLib::visualServo(aero::Vector3 &_pos, double &_offset){
+    aero::Translation r_pos(_pos.x(), _pos.y() - _offset, _pos.z());
+    aero::Quaternion  r_rot(1.0, 0.0, 0.0, 0.0);
+    aero::Transform   r_pose = r_pos * r_rot;
+
+    aero::Translation l_pos(_pos.x(), _pos.y() + _offset, _pos.z());
+    aero::Quaternion  l_rot(1.0, 0.0, 0.0, 0.0);
+    aero::Transform   l_pose = l_pos * l_rot;
+
+    bool r_ik_result = controller_->setFromIK(aero::arm::rarm, aero::ikrange::wholebody, r_pose, aero::eef::grasp);
+    bool l_ik_result = controller_->setFromIK(aero::arm::larm, aero::ikrange::arm, l_pose, aero::eef::grasp);
+
+    if(r_ik_result)
+      ROS_WARN("r_ik: true");
+    if(l_ik_result)
+      ROS_WARN("l_ik: true");
+
+    if (r_ik_result && l_ik_result) {
+      ROS_INFO("dual arm ik success !");
+      std::map<aero::joint, double> av;
+      controller_->getRobotStateVariables(av);
+      controller_->sendModelAngles(calcPathTime(av, 0.8));
+    } else {
+      ROS_WARN("ik failed");
+    }
+  }
+
+  //////////////////////////////////////////////////////////
   bool DevelLib::setBothArm(aero::Transform &_r_pose, aero::Transform &_l_pose){
     bool r_ik_result = controller_->setFromIK(aero::arm::rarm, aero::ikrange::wholebody, _r_pose, aero::eef::grasp);
     bool l_ik_result = controller_->setFromIK(aero::arm::larm, aero::ikrange::arm, _l_pose, aero::eef::grasp);
