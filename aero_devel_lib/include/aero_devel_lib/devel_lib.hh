@@ -12,6 +12,7 @@
 #include <aero_recognition_msgs/LabeledPoseArray.h>
 #include <aero_recognition_msgs/Scored2DBoxArray.h>
 #include <aero_recognition_msgs/Scored2DBox.h>
+#include <jsk_recognition_msgs/BoundingBoxArray.h>
 #include <tf/transform_listener.h>
 #include <ar_track_alvar_msgs/AlvarMarkers.h>
 #include <geometry_msgs/PoseWithCovarianceStamped.h>
@@ -21,6 +22,14 @@ namespace aero {
   struct item {
     std::string label;
     Eigen::Vector3d position;
+  };
+
+  struct box {
+    aero::Vector3 pose;
+    aero::Quaternion qua;
+    aero::Vector3 dimension;
+    std::string label;
+    double value;
   };
 
   class DevelLib {
@@ -93,13 +102,19 @@ namespace aero {
 
   public: std::vector<aero_recognition_msgs::Scored2DBox> recognizeHand();
 
+  public: std::vector<aero::box> recognizeBoxes();
+
   public: bool findItem(std::string _label, std::vector<Eigen::Vector3d> &_positions);
 
   public: bool findNearestItem(std::string _label,Eigen::Vector3d &_position);
 
+  public: bool findBoxes(std::vector<aero::Vector3> &_positions);
+
   public: void stopFCN();
 
   private: void fcnCallback_(const aero_recognition_msgs::LabeledPoseArray::ConstPtr _msg);
+
+  private: void boxCallback_(const jsk_recognition_msgs::BoundingBoxArray::ConstPtr _clustered_boxes);
 
   private: void handCallback_(const aero_recognition_msgs::Scored2DBoxArray::ConstPtr _hand_boxes);
 
@@ -154,6 +169,8 @@ namespace aero {
 
   private: aero_recognition_msgs::Scored2DBoxArray hand_msg_;
 
+  private: jsk_recognition_msgs::BoundingBoxArray bounding_box_msg_;
+
   private: bool using_rarm_ = false;
 
   private: bool using_larm_ = false;
@@ -163,6 +180,8 @@ namespace aero {
   private: ros::Subscriber fcn_sub_;
 
   private: ros::Subscriber hand_sub_;
+
+  private: ros::Subscriber box_sub_;
 
   private: ros::Publisher speak_pub_;
 

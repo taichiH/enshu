@@ -15,6 +15,7 @@ namespace aero {
     // fcn_sub_ = nh_.subscribe("/object_3d_projector/output", 1, &DevelLib::fcnCallback_, this);
     fcn_sub_ = nh_.subscribe("/object_3d_projector_/output", 1, &DevelLib::fcnCallback_, this);
     hand_sub_ = nh_.subscribe("/hand_detector/boxes", 1, &DevelLib::handCallback_, this);
+    box_sub_ = nh_.subscribe("todo add collect topic", 1, &DevelLib::boxCallback_, this);
     fcn_starter_ = nh_.serviceClient<std_srvs::SetBool>("/object_detector/set_mode");
     ar_sub_ = nh_.subscribe("/ar_pose_marker", 1, &DevelLib::arMarkerCallback_, this);
     ar_start_pub_ = nh_.advertise<std_msgs::Bool>("/ar_track_alvar/enable_detection", 1);
@@ -517,6 +518,46 @@ namespace aero {
   }
 
   //////////////////////////////////////////////////////////
+  std::vector<aero::box> DevelLib::recognizeBoxes() {
+    bounding_box_msg_ = jsk_recognition_msgs::BoundingBoxArray();
+    std::vector<aero::box> result;
+    ros::Time now = ros::Time::now();
+    for (int i = 0; i < 20; ++i) {
+      ros::spinOnce();
+      if (bounding_box_msg_.header.stamp > now) break;
+      usleep(100 * 1000);
+    }
+    controller_->setRobotStateToCurrentState();
+
+    for (auto box : bounding_box_msg_.boxes) {
+      aero::box box_tmp;
+      box_tmp.pose.x() = box.pose.position.x;
+      box_tmp.pose.y() = box.pose.position.y;
+      box_tmp.pose.z() = box.pose.position.z;
+      box_tmp.qua.w() = box.pose.orientation.w;
+      box_tmp.qua.x() = box.pose.orientation.x;
+      box_tmp.qua.y() = box.pose.orientation.y;
+      box_tmp.qua.z() = box.pose.orientation.z;
+      box_tmp.dimension.x() = box.dimensions.x;
+      box_tmp.dimension.y() = box.dimensions.y;
+      box_tmp.dimension.z() = box.dimensions.z;
+
+      // todo
+      // add convertWorld function overload
+      // to handle quaternion transform
+
+      box_tmp.pose = features_->convertWorld(box_tmp.pose, false);
+      box_tmp.label = box.label;
+      box_tmp.value = box.value;
+
+      result.push_back(box_tmp);
+    }
+    // refresh msg
+    bounding_box_msg_ = jsk_recognition_msgs::BoundingBoxArray();
+    return result;
+  }
+
+  //////////////////////////////////////////////////////////
   std::vector<aero_recognition_msgs::Scored2DBox> DevelLib::recognizeHand() {
     hand_msg_ = aero_recognition_msgs::Scored2DBoxArray();
     ros::Time now = ros::Time::now();
@@ -583,6 +624,21 @@ namespace aero {
     return true;
   }
 
+  // find box corresponded fcn result
+  //////////////////////////////////////////////////////////
+  bool DevelLib::findBoxes(std::vector<aero::Vector3> &_positions) {
+    _positions.clear();
+    std::vector<aero::box> boxes = recognizeBoxes();
+
+    if (boxes.empty()) {
+      ROS_INFO("%s: no boxes found", __FUNCTION__);
+      return false;
+    }
+
+    return true;
+  }
+
+
   //////////////////////////////////////////////////////////
   void DevelLib::stopFCN() {
     std_srvs::SetBool srv;
@@ -602,6 +658,11 @@ namespace aero {
   //////////////////////////////////////////////////////////
   void DevelLib::handCallback_(const aero_recognition_msgs::Scored2DBoxArray::ConstPtr _hand_boxes) {
     hand_msg_ = *_hand_boxes;
+  }
+
+  //////////////////////////////////////////////////////////
+  void DevelLib::boxCallback_(const jsk_recognition_msgs::BoundingBoxArray::ConstPtr _clustered_boxes) {
+    bounding_box_msg_ = *_clustered_boxes;
   }
 
   //////////////////////////////////////////////////////////
