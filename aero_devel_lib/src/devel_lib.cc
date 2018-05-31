@@ -1000,7 +1000,40 @@ namespace aero {
    return result;
   }
 
+  //////////////////////////////////////////////////////////
+  bool DevelLib::calcAdjustmentError(std::vector<aero::Vector3> &_r_contact_point, std::vector<aero::Vector3> &_l_contact_point){
+    // todo calculate adjustment error
+    ROS_INFO("%s is called", __FUNCTION__);
+    return true;
+  }
 
+  //////////////////////////////////////////////////////////
+  bool DevelLib::makeAdjustableTrajectory(std::vector<aero::trajectory> &_adjust_tra, const std::vector<aero::Vector3> &_r_contact_point,const std::vector<aero::Vector3> &_l_contact_point){
+    // todo make trajectory
+    ROS_INFO("%s is called", __FUNCTION__);
+    return true;
+  }
+
+  //////////////////////////////////////////////////////////
+  bool DevelLib::handEyeManipulation(std::vector<aero::Vector3> &_pos){
+    // todo hand manipulation plan
+    ROS_INFO("%s is called", __FUNCTION__);
+    return true;
+  }
+
+  //////////////////////////////////////////////////////////
+  bool DevelLib::checkDisplayState(){
+    // todo calculate display likelihood between collect item and current item
+    ROS_INFO("%s is called", __FUNCTION__);
+    return true;
+  }
+
+  //////////////////////////////////////////////////////////
+  bool DevelLib::adjust(std::vector<aero::trajectory> _tra){
+    // todo send angle vector
+    ROS_INFO("%s is called", __FUNCTION__);
+    return true;
+  }
 
   //////////////////////////////////////////////////////////
   int DevelLib::getUsingHandsNum() {

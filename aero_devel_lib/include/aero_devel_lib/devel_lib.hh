@@ -145,6 +145,22 @@ namespace aero {
 
   public: std::vector<int> calcTrajectoryTimes(aero::trajectory _trajectory, std::vector<double> _factors);
 
+    // adjust utils
+
+  public: bool calcAdjustmentError(std::vector<aero::Vector3> &_r_contact_point, std::vector<aero::Vector3> &_l_contact_point);
+
+  public: bool makeAdjustableTrajectory(std::vector<aero::trajectory> &_adjust_tra,
+                                        const std::vector<aero::Vector3> &_r_contact_point,
+                                        const std::vector<aero::Vector3> &_l_contact_point);
+
+  public: bool findLabeledBox(std::string _label, std::vector<aero::Vector3> _pos);
+
+  public: bool handEyeManipulation(std::vector<aero::Vector3> &_pos);
+
+  public: bool checkDisplayState();
+
+  public: bool adjust(std::vector<aero::trajectory> _tra);
+
     // hand usage
 
   public: int getUsingHandsNum();
@@ -200,7 +216,7 @@ namespace aero {
   public: bool interaction_flag;
 
   public: std::mutex flag_mutex;
-    
+
   };
 
   typedef std::shared_ptr<DevelLib> DevelLibPtr;
