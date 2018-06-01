@@ -51,6 +51,8 @@ namespace aero {
 
   public: bool graspCoffee(aero::arm _arm=aero::arm::rarm);
 
+  public: bool rpyToQuaternion(const aero::Vector3 &_rpy, aero::Quaternion &_rot);
+
   public: bool setBothArm(aero::Transform &_r_arm, aero::Transform &_l_arm);
 
   public: bool visualServo(aero::Vector3 &_pos, double &_offset, aero::arm _arm=aero::arm::both_arms);
@@ -147,11 +149,15 @@ namespace aero {
 
     // adjust utils
 
+  public: bool distinctTwoBox(std::vector<aero::box> &boxes);
+
+  public: bool getContactPoints(const std::vector<aero::box> &boxes,
+                                std::vector<aero::Vector3> &_r_contact_point,
+                                std::vector<aero::Vector3> &_l_contact_point);
+
   public: bool calcAdjustmentError(std::vector<aero::Vector3> &_r_contact_point, std::vector<aero::Vector3> &_l_contact_point);
 
-  public: bool makeAdjustableTrajectory(std::vector<aero::trajectory> &_adjust_tra,
-                                        const std::vector<aero::Vector3> &_r_contact_point,
-                                        const std::vector<aero::Vector3> &_l_contact_point);
+  public: bool makeAdjustableTrajectory(std::vector<aero::trajectory> &_adjust_tra, const std::vector<aero::Vector3> &_r_contact_point,const std::vector<aero::Vector3> &_l_contact_point, aero::arm _arm, aero::trajectory &_tra);
 
   public: bool findLabeledBox(std::string _label, std::vector<aero::Vector3> _pos);
 

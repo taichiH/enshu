@@ -15,7 +15,7 @@ namespace aero {
     // fcn_sub_ = nh_.subscribe("/object_3d_projector/output", 1, &DevelLib::fcnCallback_, this);
     fcn_sub_ = nh_.subscribe("/object_3d_projector_/output", 1, &DevelLib::fcnCallback_, this);
     hand_sub_ = nh_.subscribe("/hand_detector/boxes", 1, &DevelLib::handCallback_, this);
-    box_sub_ = nh_.subscribe("todo add collect topic", 1, &DevelLib::boxCallback_, this);
+    box_sub_ = nh_.subscribe("/segmentation_decomposer/boxes", 1, &DevelLib::boxCallback_, this);
     fcn_starter_ = nh_.serviceClient<std_srvs::SetBool>("/object_detector/set_mode");
     ar_sub_ = nh_.subscribe("/ar_pose_marker", 1, &DevelLib::arMarkerCallback_, this);
     ar_start_pub_ = nh_.advertise<std_msgs::Bool>("/ar_track_alvar/enable_detection", 1);
@@ -169,6 +169,13 @@ namespace aero {
   }
 
   //////////////////////////////////////////////////////////
+  bool DevelLib::rpyToQuaternion(const aero::Vector3 &_rpy, aero::Quaternion &_rot){
+    _rot = Eigen::AngleAxisd(_rpy.x(), Eigen::Vector3d::UnitX())
+      * Eigen::AngleAxisd(_rpy.y(), Eigen::Vector3d::UnitY())
+      * Eigen::AngleAxisd(_rpy.z(), Eigen::Vector3d::UnitZ());
+  }
+
+  //////////////////////////////////////////////////////////
   bool DevelLib::setBothArm(aero::Transform &_r_pose, aero::Transform &_l_pose){
     bool r_ik_result = controller_->setFromIK(aero::arm::rarm, aero::ikrange::wholebody, _r_pose, aero::eef::grasp);
     bool l_ik_result = controller_->setFromIK(aero::arm::larm, aero::ikrange::arm, _l_pose, aero::eef::grasp);
@@ -184,6 +191,7 @@ namespace aero {
       controller_->getRobotStateVariables(av);
       controller_->sendModelAngles(calcPathTime(av, 0.8));
       controller_->waitInterpolation();
+      usleep(2000 * 1000);
     } else {
       ROS_WARN("ik failed");
     }
@@ -1001,16 +1009,72 @@ namespace aero {
   }
 
   //////////////////////////////////////////////////////////
-  bool DevelLib::calcAdjustmentError(std::vector<aero::Vector3> &_r_contact_point, std::vector<aero::Vector3> &_l_contact_point){
-    // todo calculate adjustment error
-    ROS_INFO("%s is called", __FUNCTION__);
+  bool DevelLib::getContactPoints(const std::vector<aero::box> &boxes,
+                        std::vector<aero::Vector3> &_r_contact_point,
+                        std::vector<aero::Vector3> &_l_contact_point){
+    // todo get grasp or contact point
+    // now get specific point to test system
+
+
     return true;
   }
 
   //////////////////////////////////////////////////////////
-  bool DevelLib::makeAdjustableTrajectory(std::vector<aero::trajectory> &_adjust_tra, const std::vector<aero::Vector3> &_r_contact_point,const std::vector<aero::Vector3> &_l_contact_point){
-    // todo make trajectory
+  bool DevelLib::distinctTwoBox(std::vector<aero::box> &boxes){
+    // todo distinct which boxes chunk should grasp
+    return true;
+  }
+
+  //////////////////////////////////////////////////////////
+  bool DevelLib::calcAdjustmentError(std::vector<aero::Vector3> &_r_contact_point, std::vector<aero::Vector3> &_l_contact_point){
+    // todo calculate adjustment error
     ROS_INFO("%s is called", __FUNCTION__);
+
+    std::vector<aero::box> boxes = recognizeBoxes();
+    // distinct boxes to pre box and current box
+    distinctTwoBox(boxes);
+    getContactPoints(boxes, _r_contact_point, _l_contact_point);
+
+    return true;
+  }
+
+  //////////////////////////////////////////////////////////
+  bool DevelLib::makeAdjustableTrajectory(std::vector<aero::trajectory> &_adjust_tra, const std::vector<aero::Vector3> &_r_contact_point,const std::vector<aero::Vector3> &_l_contact_point, aero::arm _arm, aero::trajectory &_tra){
+    // // diffs
+    // Eigen::Vector3d end_diff, entry_diff, offset;
+    // end_diff = {0.0 ,0.0, -0.03};
+    // entry_diff = {-0.10,0.0,0.15};
+    // offset = {0.0,0.0,0.0};
+
+    // // rotations
+    // Eigen::Quaterniond end_qua, entry_qua;
+    // if(_arm == aero::arm::larm) {
+    //   end_qua = getRotationQuaternion("y", 45.0 * M_PI / 180.0)
+    //     * getRotationQuaternion("x", 90.0 * M_PI / 180.0);
+    //   entry_qua = getRotationQuaternion("x", 90.0 * M_PI / 180.0);
+    // } else {
+    //   end_qua = getRotationQuaternion("y", 45.0 * M_PI / 180.0)
+    //     * getRotationQuaternion("x", -90.0 * M_PI / 180.0);
+    //   entry_qua = getRotationQuaternion("x", -90.0 * M_PI / 180.0);
+    // }
+
+    // aero::Transform end_pose, entry_pose;
+    // end_pose = aero::Translation(_pos + offset + end_diff) * end_qua;
+    // entry_pose = aero::Translation(_pos + offset + entry_diff) * entry_qua;
+    // features_->setMarker(entry_pose, 1);
+    // features_->setMarker(end_pose, 6);
+    // ROS_WARN("entry: x:%f y:%f z:%f", entry_pose.translation().x(), entry_pose.translation().y(), entry_pose.translation().z());
+    // ROS_WARN("end  : x:%f y:%f z:%f", end_pose.translation().x(), end_pose.translation().y(), end_pose.translation().z());
+
+    // aero::trajectory tra;
+    // bool res = fastestTrajectory3(_arm, {entry_pose, end_pose}, aero::eef::pick, tra);
+    // if (!res) {
+    //   ROS_INFO("%s: ik failed", __FUNCTION__);
+    //   return false;
+    // }
+    // ROS_INFO("%s: success!", __FUNCTION__);
+    // _tra = tra;
+
     return true;
   }
 
