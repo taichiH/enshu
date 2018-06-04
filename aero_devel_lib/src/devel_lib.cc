@@ -189,7 +189,7 @@ namespace aero {
       ROS_INFO("dual arm ik success !");
       std::map<aero::joint, double> av;
       controller_->getRobotStateVariables(av);
-      controller_->sendModelAngles(calcPathTime(av, 0.8));
+      controller_->sendModelAngles(calcPathTime(av, 0.4));
       controller_->waitInterpolation();
       usleep(2000 * 1000);
     } else {
