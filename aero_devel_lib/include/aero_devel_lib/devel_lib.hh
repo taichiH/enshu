@@ -73,6 +73,10 @@ namespace aero {
 
   public: bool placeCoffee(Eigen::Vector3d _pos=Eigen::Vector3d(0.75, -0.25, 1.05), double _offset_y=0.0, aero::arm _arm=aero::arm::rarm);
 
+  public: bool holdSupportItem(Eigen::Vector3d _pos=Eigen::Vector3d(0.75, -0.25, 1.05),
+                               Eigen::Vector3d _offset=Eigen::Vector3d(0.0, 0.03, 0.03),
+                               aero::arm _arm=aero::arm::rarm);
+
   public: bool placeCoffeeReach(Eigen::Vector3d _pos=Eigen::Vector3d(0.75, -0.25, 1.05), double _offset_y=0.0, aero::arm _arm=aero::arm::rarm);
   public: void sendResetPose();
 

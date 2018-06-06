@@ -333,6 +333,14 @@ namespace aero {
     return true;
   }
 
+  bool DevelLib::holdSupportItem(Eigen::Vector3d _pos, Eigen::Vector3d _offset, aero::arm _arm) {
+    _pos.z() += _offset.z();
+    placeCoffeeReach(_pos, _offset.y(), _arm);
+    graspCoffee(_arm);
+    return true;
+  }
+
+
   //////////////////////////////////////////////////////////
   bool DevelLib::placeCoffeeReach(Eigen::Vector3d _pos, double _offset_y, aero::arm _arm) {
     controller_->setPoseVariables(aero::pose::reset_manip);
@@ -1082,6 +1090,24 @@ namespace aero {
   bool DevelLib::handEyeManipulation(std::vector<aero::Vector3> &_pos){
     // todo hand manipulation plan
     ROS_INFO("%s is called", __FUNCTION__);
+
+    aero::Translation l_pos(0.45, 0.08, 1.25);
+    aero::Quaternion  l_rot;
+    aero::Vector3 l_rot_rpy(0.0, 45.0, 0.0);
+    rpyToQuaternion(l_rot_rpy, l_rot);
+    aero::Transform l_pose = l_pos * l_rot;
+
+    bool l_ik_result = controller_->setFromIK(aero::arm::larm, aero::ikrange::wholebody, l_pose, aero::eef::grasp);
+
+    if (l_ik_result) {
+      ROS_INFO("ik success !");
+      controller_->sendModelAngles(3000);
+      sleep(3);
+    } else {
+      ROS_WARN("ik failed");
+      return false;
+    }
+
     return true;
   }
 
