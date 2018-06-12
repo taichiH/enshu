@@ -16,6 +16,8 @@ namespace aero {
     fcn_sub_ = nh_.subscribe("/object_3d_projector_/output", 1, &DevelLib::fcnCallback_, this);
     hand_sub_ = nh_.subscribe("/hand_detector/boxes", 1, &DevelLib::handCallback_, this);
     box_sub_ = nh_.subscribe("/segmentation_decomposer/boxes", 1, &DevelLib::boxCallback_, this);
+    // polygon_sub_ = nh_.subscribe("/polygon_magnifier/output", 1, &DevelLib::polygonCallback_, this);
+    centroid_sub_ = nh_.subscribe("/segmentation_decomposer/centroid_pose_array", 1, &DevelLib::centroidCallback_, this);
     fcn_starter_ = nh_.serviceClient<std_srvs::SetBool>("/object_detector/set_mode");
     ar_sub_ = nh_.subscribe("/ar_pose_marker", 1, &DevelLib::arMarkerCallback_, this);
     ar_start_pub_ = nh_.advertise<std_msgs::Bool>("/ar_track_alvar/enable_detection", 1);
@@ -102,6 +104,63 @@ namespace aero {
     _tra = tra;
     return true;
   }
+
+  //////////////////////////////////////////////////////////
+  bool DevelLib::makeSideGrasp(const aero::arm _arm, const Eigen::Vector3d _pos, aero::trajectory& _tra) {
+    ROS_INFO("called %s", __FUNCTION__);
+    // diffs
+    Eigen::Vector3d end_diff, mid_diff, entry_diff, offset;
+    end_diff = {-0.05 ,0.0, 0.0};
+    mid_diff = {0.10,0.0,0.0};
+    entry_diff = {-0.15,0.0,0.0};
+    offset = {0.0,0.0,0.0};
+
+    // rotations
+    Eigen::Quaterniond end_qua, mid_qua, entry_qua;
+    if(_arm == aero::arm::larm) {
+      end_qua = getRotationQuaternion("y", 0.0 * M_PI / 180.0)
+        * getRotationQuaternion("x", 0.0 * M_PI / 180.0)
+        * getRotationQuaternion("z", -45.0 * M_PI / 180.0);
+      mid_qua = getRotationQuaternion("y", 0.0 * M_PI / 180.0)
+        * getRotationQuaternion("x", 0.0 * M_PI / 180.0)
+        * getRotationQuaternion("z", -45.0 * M_PI / 180.0);
+      entry_qua = getRotationQuaternion("y", 0.0 * M_PI / 180.0)
+        * getRotationQuaternion("x", 0.0 * M_PI / 180.0)
+        * getRotationQuaternion("z", -45.0 * M_PI / 180.0);
+    } else {
+      end_qua = getRotationQuaternion("y", 0.0 * M_PI / 180.0)
+        * getRotationQuaternion("x", 0.0 * M_PI / 180.0)
+        * getRotationQuaternion("z", 45.0 * M_PI / 180.0);
+      mid_qua = getRotationQuaternion("y", 0.0 * M_PI / 180.0)
+        * getRotationQuaternion("x", 0.0 * M_PI / 180.0)
+        * getRotationQuaternion("z", 45.0 * M_PI / 180.0);
+      entry_qua = getRotationQuaternion("y", 0.0 * M_PI / 180.0)
+        * getRotationQuaternion("x", 0.0 * M_PI / 180.0)
+        * getRotationQuaternion("z", 45.0 * M_PI / 180.0);
+    }
+
+    aero::Transform end_pose, mid_pose, entry_pose;
+    end_pose = aero::Translation(_pos + offset + end_diff) * end_qua;
+    mid_pose = aero::Translation(_pos + offset + mid_diff) * mid_qua;
+    entry_pose = aero::Translation(_pos + offset + entry_diff) * entry_qua;
+    features_->setMarker(entry_pose, 1);
+    features_->setMarker(mid_pose, 2);
+    features_->setMarker(end_pose, 3);
+    ROS_WARN("entry: x:%f y:%f z:%f", entry_pose.translation().x(), entry_pose.translation().y(), entry_pose.translation().z());
+    ROS_WARN("mid  : x:%f y:%f z:%f", mid_pose.translation().x(), mid_pose.translation().y(), mid_pose.translation().z());
+    ROS_WARN("end  : x:%f y:%f z:%f", end_pose.translation().x(), end_pose.translation().y(), end_pose.translation().z());
+
+    aero::trajectory tra;
+    bool res = fastestTrajectory3(_arm, {entry_pose, mid_pose, end_pose}, aero::eef::pick, tra);
+    if (!res) {
+      ROS_INFO("%s: ik failed", __FUNCTION__);
+      return false;
+    }
+    ROS_INFO("%s: success!", __FUNCTION__);
+    _tra = tra;
+    return true;
+  }
+
 
   //////////////////////////////////////////////////////////
   bool DevelLib::pickCoffeeFront(Eigen::Vector3d _pos, float _container_height, aero::arm _arm, Eigen::Vector3d _offset) {
@@ -333,10 +392,48 @@ namespace aero {
     return true;
   }
 
-  bool DevelLib::holdSupportItem(Eigen::Vector3d _pos, Eigen::Vector3d _offset, aero::arm _arm) {
+  bool DevelLib::holdItemTop(Eigen::Vector3d _pos, Eigen::Vector3d _offset, aero::arm _arm) {
+    ROS_INFO("called %s", __FUNCTION__);
     _pos.z() += _offset.z();
     placeCoffeeReach(_pos, _offset.y(), _arm);
     graspCoffee(_arm);
+    placeCoffeeReturn();
+    return true;
+  }
+
+  bool DevelLib::holdItemSide(Eigen::Vector3d _pos, Eigen::Vector3d _offset, aero::arm _arm) {
+    ROS_INFO("called %s", __FUNCTION__);
+    sideGraspReach(_pos, _offset.x(), _arm);
+    graspCoffee(_arm);
+    placeCoffeeReturn();
+    return true;
+  }
+
+  //////////////////////////////////////////////////////////
+  bool DevelLib::sideGraspReach(Eigen::Vector3d _pos, double _offset_x, aero::arm _arm) {
+    double factor = 0.8;
+
+    if(!tra_.empty())
+      tra_.clear();
+
+    // make trajectory
+    bool res = makeSideGrasp(_arm, _pos, tra_);
+
+    if (!res) {
+      ROS_WARN("%s: side grasp reach ik failed", __FUNCTION__);
+      return false;
+    }
+
+    flag_mutex.lock();
+    bool flag = interaction_flag;
+    flag_mutex.unlock();
+
+    ROS_INFO("> tra size is %d", static_cast<int>(tra_.size()));
+    if(!flag){
+      ROS_INFO("flag: %d", static_cast<int>(flag));
+      controller_->sendTrajectory(tra_, calcTrajectoryTimes(tra_, 0.8), aero::ikrange::wholebody);
+      controller_->waitInterpolation();
+    }
     return true;
   }
 
@@ -574,6 +671,61 @@ namespace aero {
   }
 
   //////////////////////////////////////////////////////////
+  std::vector<aero::Vector3> DevelLib::recognizeCentroid() {
+    centroid_msg_ = geometry_msgs::PoseArray();
+    std::vector<aero::Vector3> result;
+    ros::Time now = ros::Time::now();
+    for (int i = 0; i < 20; ++i) {
+      ros::spinOnce();
+      if (centroid_msg_.header.stamp > now) break;
+      usleep(100 * 1000);
+    }
+
+    for (auto center : centroid_msg_.poses) {
+      aero::Vector3 vec_tmp;
+      vec_tmp.x() = center.position.x;
+      vec_tmp.y() = center.position.y;
+      vec_tmp.z() = center.position.z;
+      result.push_back(vec_tmp);
+    }
+
+    // refresh msg
+    centroid_msg_ = geometry_msgs::PoseArray();
+
+    return result;
+  }
+
+
+  //////////////////////////////////////////////////////////
+  // std::vector<std::vector<aero::Vector3>> DevelLib::recognizePolygon() {
+  //   polygon_msg_ = jsk_recognition_msgs::PolygonArray();
+  //   std::vector<std::vector<aero::Vector3>> result;
+
+  //   ros::Time now = ros::Time::now();
+  //   for (int i = 0; i < 20; ++i) {
+  //     ros::spinOnce();
+  //     if (bounding_box_msg_.header.stamp > now) break;
+  //     usleep(100 * 1000);
+  //   }
+  //   controller_->setRobotStateToCurrentState();
+
+  //   for (auto polygon : polygon_msg_.polygons) {
+  //     std::vector<aero::Vector3> points;
+  //     for (auto point : polygon.points){
+  //       aero::Vector3 tmp_point;
+  //       tmp_point.x() = polygons.polygon.points.x;
+  //       tmp_point.y() = polygons.polygon.points.y;
+  //       tmp_point.z() = polygons.polygon.points.z;
+  //       points.push_back(tmp_point);
+  //     }
+  //     result.push_back(points);
+  //   }
+  //   // refresh msg
+  //   polygon_msg_ = jsk_recognition_msgs::PolygonArray();
+  //   return result;
+  // }
+
+  //////////////////////////////////////////////////////////
   std::vector<aero_recognition_msgs::Scored2DBox> DevelLib::recognizeHand() {
     hand_msg_ = aero_recognition_msgs::Scored2DBoxArray();
     ros::Time now = ros::Time::now();
@@ -654,6 +806,19 @@ namespace aero {
     return true;
   }
 
+  //////////////////////////////////////////////////////////
+  bool DevelLib::findCentroid(std::vector<aero::Vector3> &_positions) {
+    _positions.clear();
+    _positions = recognizeCentroid();
+
+    if (_positions.empty()) {
+      ROS_INFO("%s: no centers found", __FUNCTION__);
+      return false;
+    }
+
+    return true;
+  }
+
 
   //////////////////////////////////////////////////////////
   void DevelLib::stopFCN() {
@@ -680,6 +845,17 @@ namespace aero {
   void DevelLib::boxCallback_(const jsk_recognition_msgs::BoundingBoxArray::ConstPtr _clustered_boxes) {
     bounding_box_msg_ = *_clustered_boxes;
   }
+
+  //////////////////////////////////////////////////////////
+  void DevelLib::centroidCallback_(const geometry_msgs::PoseArray::ConstPtr _centroid) {
+    centroid_msg_ = *_centroid;
+  }
+
+
+  //////////////////////////////////////////////////////////
+  // void DevelLib::polygonCallback_(const jsk_recognition_msgs::PolygonArray _polygons) {
+  //   polygon_msg_ = _polygons;
+  // }
 
   //////////////////////////////////////////////////////////
   bool DevelLib::goTo(std::string _location) {
@@ -1047,6 +1223,18 @@ namespace aero {
   }
 
   //////////////////////////////////////////////////////////
+  bool DevelLib::calcAdjustmentError(aero::baserot _base){
+    // todo calculate adjustment error
+    ROS_INFO("%s is called", __FUNCTION__);
+
+    std::vector<aero::box> boxes = recognizeBoxes();
+    // distinct boxes to pre box and current box
+    distinctTwoBox(boxes);
+
+    return true;
+  }
+
+  //////////////////////////////////////////////////////////
   bool DevelLib::makeAdjustableTrajectory(std::vector<aero::trajectory> &_adjust_tra, const std::vector<aero::Vector3> &_r_contact_point,const std::vector<aero::Vector3> &_l_contact_point, aero::arm _arm, aero::trajectory &_tra){
     // // diffs
     // Eigen::Vector3d end_diff, entry_diff, offset;
@@ -1087,19 +1275,23 @@ namespace aero {
   }
 
   //////////////////////////////////////////////////////////
+  bool DevelLib::makeAdjustableTrajectory(){
+    return true;
+  }
+
+  //////////////////////////////////////////////////////////
   bool DevelLib::handEyeManipulation(std::vector<aero::Vector3> &_pos){
     // todo hand manipulation plan
     ROS_INFO("%s is called", __FUNCTION__);
 
-    aero::Translation l_pos(0.45, 0.08, 1.25);
-    aero::Quaternion  l_rot;
-    aero::Vector3 l_rot_rpy(0.0, 45.0, 0.0);
-    rpyToQuaternion(l_rot_rpy, l_rot);
-    aero::Transform l_pose = l_pos * l_rot;
+    // hand eye position
+    aero::Translation r_pos(0.487, -0.288, 1.362);
+    aero::Quaternion r_rot(0.974, 0.039, 0.220, 0.021);
+    aero::Transform r_pose = r_pos * r_rot;
 
-    bool l_ik_result = controller_->setFromIK(aero::arm::larm, aero::ikrange::wholebody, l_pose, aero::eef::grasp);
+    bool r_ik_result = controller_->setFromIK(aero::arm::rarm, aero::ikrange::wholebody, r_pose, aero::eef::grasp);
 
-    if (l_ik_result) {
+    if (r_ik_result) {
       ROS_INFO("ik success !");
       controller_->sendModelAngles(3000);
       sleep(3);
@@ -1122,6 +1314,16 @@ namespace aero {
   bool DevelLib::adjust(std::vector<aero::trajectory> _tra){
     // todo send angle vector
     ROS_INFO("%s is called", __FUNCTION__);
+    return true;
+  }
+
+  //////////////////////////////////////////////////////////
+  bool DevelLib::adjust(aero::baserot _base){
+    // todo send angle vector
+    ROS_INFO("%s is called", __FUNCTION__);
+
+    controller_->goPos(_base.x, _base.y, _base.rad);
+
     return true;
   }
 

@@ -13,6 +13,7 @@
 #include <aero_recognition_msgs/Scored2DBoxArray.h>
 #include <aero_recognition_msgs/Scored2DBox.h>
 #include <jsk_recognition_msgs/BoundingBoxArray.h>
+#include <geometry_msgs/PoseArray.h>
 #include <tf/transform_listener.h>
 #include <ar_track_alvar_msgs/AlvarMarkers.h>
 #include <geometry_msgs/PoseWithCovarianceStamped.h>
@@ -32,6 +33,16 @@ namespace aero {
     double value;
   };
 
+  struct polygons{
+    std::vector<aero::Vector3> points;
+  };
+
+  struct baserot{
+    float x;
+    float y;
+    float rad;
+  };
+
   class DevelLib {
   public: explicit DevelLib(ros::NodeHandle _nh, aero::interface::AeroMoveitInterface::Ptr _controller, Eigen::Vector3d _cam_pos=Eigen::Vector3d(0.06, 0.04, 0.08), Eigen::Quaterniond _cam_qua=Eigen::Quaterniond(0.5, -0.5, 0.5, -0.5));
 
@@ -43,6 +54,7 @@ namespace aero {
 
   public: bool makeTopGrasp(const aero::arm _arm, const Eigen::Vector3d _pos, aero::trajectory& _tra);
 
+  public: bool makeSideGrasp(const aero::arm _arm, const Eigen::Vector3d _pos, aero::trajectory& _tra);
     // grasp coffee
 
     //with offset
@@ -73,9 +85,15 @@ namespace aero {
 
   public: bool placeCoffee(Eigen::Vector3d _pos=Eigen::Vector3d(0.75, -0.25, 1.05), double _offset_y=0.0, aero::arm _arm=aero::arm::rarm);
 
-  public: bool holdSupportItem(Eigen::Vector3d _pos=Eigen::Vector3d(0.75, -0.25, 1.05),
-                               Eigen::Vector3d _offset=Eigen::Vector3d(0.0, 0.03, 0.03),
-                               aero::arm _arm=aero::arm::rarm);
+  public: bool holdItemTop(Eigen::Vector3d _pos=Eigen::Vector3d(0.75, -0.25, 1.05),
+                           Eigen::Vector3d _offset=Eigen::Vector3d(0.0, 0.03, 0.03),
+                           aero::arm _arm=aero::arm::rarm);
+
+  public: bool holdItemSide(Eigen::Vector3d _pos=Eigen::Vector3d(0.75, -0.25, 1.05),
+                            Eigen::Vector3d _offset=Eigen::Vector3d(0.0, 0.0, 0.0),
+                            aero::arm _arm=aero::arm::rarm);
+
+  public: bool sideGraspReach(Eigen::Vector3d _pos, double _offset_x, aero::arm _arm);
 
   public: bool placeCoffeeReach(Eigen::Vector3d _pos=Eigen::Vector3d(0.75, -0.25, 1.05), double _offset_y=0.0, aero::arm _arm=aero::arm::rarm);
   public: void sendResetPose();
@@ -110,17 +128,27 @@ namespace aero {
 
   public: std::vector<aero::box> recognizeBoxes();
 
+  public: std::vector<aero::Vector3> recognizeCentroid();
+
+  // public: std::vector<std::vector<aero::Vector3>> recognizePolygon();
+
   public: bool findItem(std::string _label, std::vector<Eigen::Vector3d> &_positions);
 
   public: bool findNearestItem(std::string _label,Eigen::Vector3d &_position);
 
   public: bool findBoxes(std::vector<aero::Vector3> &_positions);
 
+  public: bool findCentroid(std::vector<aero::Vector3> &_positions);
+
   public: void stopFCN();
 
   private: void fcnCallback_(const aero_recognition_msgs::LabeledPoseArray::ConstPtr _msg);
 
   private: void boxCallback_(const jsk_recognition_msgs::BoundingBoxArray::ConstPtr _clustered_boxes);
+
+  private: void centroidCallback_(const geometry_msgs::PoseArray::ConstPtr _centroid_msgs);
+
+  // private: void polygonCallback_(const jsk_recognition_msgs::PolygonArray _polygons);
 
   private: void handCallback_(const aero_recognition_msgs::Scored2DBoxArray::ConstPtr _hand_boxes);
 
@@ -161,7 +189,11 @@ namespace aero {
 
   public: bool calcAdjustmentError(std::vector<aero::Vector3> &_r_contact_point, std::vector<aero::Vector3> &_l_contact_point);
 
+  public: bool calcAdjustmentError(aero::baserot _base);
+
   public: bool makeAdjustableTrajectory(std::vector<aero::trajectory> &_adjust_tra, const std::vector<aero::Vector3> &_r_contact_point,const std::vector<aero::Vector3> &_l_contact_point, aero::arm _arm, aero::trajectory &_tra);
+
+  public: bool makeAdjustableTrajectory();
 
   public: bool findLabeledBox(std::string _label, std::vector<aero::Vector3> _pos);
 
@@ -170,6 +202,8 @@ namespace aero {
   public: bool checkDisplayState();
 
   public: bool adjust(std::vector<aero::trajectory> _tra);
+
+  public: bool adjust(aero::baserot _base);
 
     // hand usage
 
@@ -197,6 +231,10 @@ namespace aero {
 
   private: jsk_recognition_msgs::BoundingBoxArray bounding_box_msg_;
 
+  private: geometry_msgs::PoseArray centroid_msg_;
+
+  // private: jsk_recognition_msgs::PolygonArray polygon_msg_;
+
   private: bool using_rarm_ = false;
 
   private: bool using_larm_ = false;
@@ -208,6 +246,10 @@ namespace aero {
   private: ros::Subscriber hand_sub_;
 
   private: ros::Subscriber box_sub_;
+
+  private: ros::Subscriber centroid_sub_;
+
+  private: ros::Subscriber polygon_sub_;
 
   private: ros::Publisher speak_pub_;
 
