@@ -47,6 +47,84 @@ namespace aero {
   }
 
   //////////////////////////////////////////////////////////
+  bool DevelLib::resetTmp(){
+    // reset both arm
+    aero::Translation r_pos(0.296, -0.267, 1.369);
+    aero::Quaternion r_rot(0.858, -0.060, -0.486, -0.158);
+    aero::Transform r_pose = r_pos * r_rot;
+    bool r_ik_result = controller_->setFromIK(aero::arm::rarm, aero::ikrange::wholebody, r_pose, aero::eef::grasp);
+
+    aero::Translation l_pos(0.296, 0.267, 1.369);
+    aero::Quaternion l_rot(0.857, 0.060, -0.486, 0.158);
+    aero::Transform l_pose = l_pos * l_rot;
+    bool l_ik_result = controller_->setFromIK(aero::arm::larm, aero::ikrange::arm, l_pose, aero::eef::grasp);
+
+    if (r_ik_result && l_ik_result) {
+      ROS_INFO("both ik success !!!");
+      controller_->sendModelAngles(3000);
+      sleep(3);
+    } else {
+      ROS_WARN("both ik failed");
+      return false;
+    }
+
+    // lift up lifter
+    ROS_INFO("lift up");
+    controller_->setLifter(0.0, 0.0);
+    usleep(5000 * 1000);
+
+    // reset waist link
+    ROS_INFO("reset waist y");
+    double waist_y_to = 0.0;
+    aero::joint_angle_map joint_angles;
+    controller_->getRobotStateVariables(joint_angles);
+    joint_angles[aero::joint::waist_y] = waist_y_to;
+
+    controller_->setRobotStateVariables(joint_angles);
+    controller_->sendModelAngles(2000);// send to robot
+    sleep(3);
+
+    ROS_INFO("reset waist p");
+    double waist_p_to = 0.0;
+    controller_->getRobotStateVariables(joint_angles);
+    joint_angles[aero::joint::waist_p] = waist_p_to;
+
+    controller_->setRobotStateVariables(joint_angles);
+    controller_->sendModelAngles(2000);// send to robot
+    sleep(3);
+
+    double waist_r_to = 0.0;
+    controller_->getRobotStateVariables(joint_angles);
+    joint_angles[aero::joint::waist_r] = waist_r_to;
+
+    controller_->setRobotStateVariables(joint_angles);
+    controller_->sendModelAngles(2000);// send to robot
+    sleep(3);
+
+    // reset both arm
+    r_pos = {0.296, -0.267, 1.369};
+    r_rot = {0.858, -0.060, -0.486, -0.158};
+    r_pose = r_pos * r_rot;
+    r_ik_result = controller_->setFromIK(aero::arm::rarm, aero::ikrange::wholebody, r_pose, aero::eef::grasp);
+
+    l_pos = {0.296, 0.267, 1.369};
+    l_rot = {0.857, 0.060, -0.486, 0.158};
+    l_pose = l_pos * l_rot;
+    l_ik_result = controller_->setFromIK(aero::arm::larm, aero::ikrange::arm, l_pose, aero::eef::grasp);
+
+    if (r_ik_result && l_ik_result) {
+      ROS_INFO("both ik success !!!");
+      controller_->sendModelAngles(3000);
+      sleep(3);
+    } else {
+      ROS_WARN("both ik failed");
+      return false;
+    }
+
+    return true;
+  }
+
+  //////////////////////////////////////////////////////////
   bool DevelLib::makeTopGrasp(const aero::arm _arm, const Eigen::Vector3d _pos, aero::trajectory& _tra) {
     // diffs
     Eigen::Vector3d end_diff, mid_diff, mid2_diff, mid3_diff, mid4_diff, entry_diff, offset;
@@ -744,6 +822,7 @@ namespace aero {
 
   //////////////////////////////////////////////////////////
   bool DevelLib::findItem(std::string _label, std::vector<Eigen::Vector3d> &_positions) {
+    std::cerr << "3!!!!!!!!!!!!!!!" << std::endl;
     _positions.clear();
     std::vector<aero::item> items = recognizeItems();
 

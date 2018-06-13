@@ -52,6 +52,8 @@ namespace aero {
 
   public: void speakAsync(const std::string &_speech);
 
+  public: bool resetTmp();
+
   public: bool makeTopGrasp(const aero::arm _arm, const Eigen::Vector3d _pos, aero::trajectory& _tra);
 
   public: bool makeSideGrasp(const aero::arm _arm, const Eigen::Vector3d _pos, aero::trajectory& _tra);
