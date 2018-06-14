@@ -52,7 +52,7 @@ namespace aero {
 
   public: void speakAsync(const std::string &_speech);
 
-  public: bool resetTmp();
+  public: bool resetTmp(bool wholebody=true);
 
   public: bool makeTopGrasp(const aero::arm _arm, const Eigen::Vector3d _pos, aero::trajectory& _tra);
 
@@ -237,6 +237,8 @@ namespace aero {
 
   // private: jsk_recognition_msgs::PolygonArray polygon_msg_;
 
+  // private: jsk_recognition_msgs::ClusterPointIndices cluster_msg_;
+
   private: bool using_rarm_ = false;
 
   private: bool using_larm_ = false;
@@ -252,6 +254,8 @@ namespace aero {
   private: ros::Subscriber centroid_sub_;
 
   private: ros::Subscriber polygon_sub_;
+
+  // private: ros::Subscriber cluster_sub_;
 
   private: ros::Publisher speak_pub_;
 

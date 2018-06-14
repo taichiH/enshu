@@ -47,14 +47,14 @@ namespace aero {
   }
 
   //////////////////////////////////////////////////////////
-  bool DevelLib::resetTmp(){
+  bool DevelLib::resetTmp(bool wholebody){
     // reset both arm
-    aero::Translation r_pos(0.296, -0.267, 1.369);
+    aero::Translation r_pos(0.45, -0.267, 1.369);
     aero::Quaternion r_rot(0.858, -0.060, -0.486, -0.158);
     aero::Transform r_pose = r_pos * r_rot;
     bool r_ik_result = controller_->setFromIK(aero::arm::rarm, aero::ikrange::wholebody, r_pose, aero::eef::grasp);
 
-    aero::Translation l_pos(0.296, 0.267, 1.369);
+    aero::Translation l_pos(0.45, 0.267, 1.369);
     aero::Quaternion l_rot(0.857, 0.060, -0.486, 0.158);
     aero::Transform l_pose = l_pos * l_rot;
     bool l_ik_result = controller_->setFromIK(aero::arm::larm, aero::ikrange::arm, l_pose, aero::eef::grasp);
@@ -68,57 +68,59 @@ namespace aero {
       return false;
     }
 
-    // lift up lifter
-    ROS_INFO("lift up");
-    controller_->setLifter(0.0, 0.0);
-    usleep(5000 * 1000);
+    if(wholebody){
+      // lift up lifter
+      ROS_INFO("lift up");
+      controller_->setLifter(0.0, 0.0);
+      usleep(5000 * 1000);
 
-    // reset waist link
-    ROS_INFO("reset waist y");
-    double waist_y_to = 0.0;
-    aero::joint_angle_map joint_angles;
-    controller_->getRobotStateVariables(joint_angles);
-    joint_angles[aero::joint::waist_y] = waist_y_to;
+      // reset waist link
+      ROS_INFO("reset waist y");
+      double waist_y_to = 0.0;
+      aero::joint_angle_map joint_angles;
+      controller_->getRobotStateVariables(joint_angles);
+      joint_angles[aero::joint::waist_y] = waist_y_to;
 
-    controller_->setRobotStateVariables(joint_angles);
-    controller_->sendModelAngles(2000);// send to robot
-    sleep(3);
-
-    ROS_INFO("reset waist p");
-    double waist_p_to = 0.0;
-    controller_->getRobotStateVariables(joint_angles);
-    joint_angles[aero::joint::waist_p] = waist_p_to;
-
-    controller_->setRobotStateVariables(joint_angles);
-    controller_->sendModelAngles(2000);// send to robot
-    sleep(3);
-
-    double waist_r_to = 0.0;
-    controller_->getRobotStateVariables(joint_angles);
-    joint_angles[aero::joint::waist_r] = waist_r_to;
-
-    controller_->setRobotStateVariables(joint_angles);
-    controller_->sendModelAngles(2000);// send to robot
-    sleep(3);
-
-    // reset both arm
-    r_pos = {0.296, -0.267, 1.369};
-    r_rot = {0.858, -0.060, -0.486, -0.158};
-    r_pose = r_pos * r_rot;
-    r_ik_result = controller_->setFromIK(aero::arm::rarm, aero::ikrange::wholebody, r_pose, aero::eef::grasp);
-
-    l_pos = {0.296, 0.267, 1.369};
-    l_rot = {0.857, 0.060, -0.486, 0.158};
-    l_pose = l_pos * l_rot;
-    l_ik_result = controller_->setFromIK(aero::arm::larm, aero::ikrange::arm, l_pose, aero::eef::grasp);
-
-    if (r_ik_result && l_ik_result) {
-      ROS_INFO("both ik success !!!");
-      controller_->sendModelAngles(3000);
+      controller_->setRobotStateVariables(joint_angles);
+      controller_->sendModelAngles(2000);// send to robot
       sleep(3);
-    } else {
-      ROS_WARN("both ik failed");
-      return false;
+
+      ROS_INFO("reset waist p");
+      double waist_p_to = 0.0;
+      controller_->getRobotStateVariables(joint_angles);
+      joint_angles[aero::joint::waist_p] = waist_p_to;
+
+      controller_->setRobotStateVariables(joint_angles);
+      controller_->sendModelAngles(2000);// send to robot
+      sleep(3);
+
+      double waist_r_to = 0.0;
+      controller_->getRobotStateVariables(joint_angles);
+      joint_angles[aero::joint::waist_r] = waist_r_to;
+
+      controller_->setRobotStateVariables(joint_angles);
+      controller_->sendModelAngles(2000);// send to robot
+      sleep(3);
+
+      // reset both arm
+      r_pos = {0.296, -0.267, 1.369};
+      r_rot = {0.858, -0.060, -0.486, -0.158};
+      r_pose = r_pos * r_rot;
+      r_ik_result = controller_->setFromIK(aero::arm::rarm, aero::ikrange::wholebody, r_pose, aero::eef::grasp);
+
+      l_pos = {0.296, 0.267, 1.369};
+      l_rot = {0.857, 0.060, -0.486, 0.158};
+      l_pose = l_pos * l_rot;
+      l_ik_result = controller_->setFromIK(aero::arm::larm, aero::ikrange::arm, l_pose, aero::eef::grasp);
+
+      if (r_ik_result && l_ik_result) {
+        ROS_INFO("both ik success !!!");
+        controller_->sendModelAngles(3000);
+        sleep(3);
+      } else {
+        ROS_WARN("both ik failed");
+        return false;
+      }
     }
 
     return true;
@@ -130,24 +132,24 @@ namespace aero {
     Eigen::Vector3d end_diff, mid_diff, mid2_diff, mid3_diff, mid4_diff, entry_diff, offset;
     end_diff = {0.0 ,0.0, -0.03};
     mid_diff = {0.0,0.0,0.01};
-    mid2_diff = {-0.02,0.0,0.05};
-    mid3_diff = {-0.05,0.0,0.10};
-    mid4_diff = {-0.075,0.0,0.125};
+    mid2_diff = {0.0,0.0,0.05};
+    mid3_diff = {-0.01,0.0,0.10};
+    mid4_diff = {-0.02,0.0,0.125};
     entry_diff = {-0.10,0.0,0.15};
     offset = {0.0,0.0,0.0};
 
     // rotations
     Eigen::Quaterniond end_qua, mid_qua, entry_qua;
     if(_arm == aero::arm::larm) {
-      end_qua = getRotationQuaternion("y", 45.0 * M_PI / 180.0)
+      end_qua = getRotationQuaternion("y", 30.0 * M_PI / 180.0)
         * getRotationQuaternion("x", 90.0 * M_PI / 180.0);
-      mid_qua = getRotationQuaternion("y", 45.0 * M_PI / 180.0)
+      mid_qua = getRotationQuaternion("y", 30.0 * M_PI / 180.0)
         * getRotationQuaternion("x", 90.0 * M_PI / 180.0);
       entry_qua = getRotationQuaternion("x", 90.0 * M_PI / 180.0);
     } else {
-      end_qua = getRotationQuaternion("y", 45.0 * M_PI / 180.0)
+      end_qua = getRotationQuaternion("y", 30.0 * M_PI / 180.0)
         * getRotationQuaternion("x", -90.0 * M_PI / 180.0);
-      mid_qua = getRotationQuaternion("y", 45.0 * M_PI / 180.0)
+      mid_qua = getRotationQuaternion("y", 30.0 * M_PI / 180.0)
         * getRotationQuaternion("x", -90.0 * M_PI / 180.0);
       entry_qua = getRotationQuaternion("x", -90.0 * M_PI / 180.0);
     }
@@ -519,7 +521,7 @@ namespace aero {
   //////////////////////////////////////////////////////////
   bool DevelLib::placeCoffeeReach(Eigen::Vector3d _pos, double _offset_y, aero::arm _arm) {
     controller_->setPoseVariables(aero::pose::reset_manip);
-    controller_->resetLookAt();
+    // controller_->resetLookAt();
     std::map<aero::joint, double> av;
     controller_->getRobotStateVariables(av);
     controller_->sendModelAngles(calcPathTime(av, 0.8));
@@ -699,9 +701,9 @@ namespace aero {
       item_tmp.position = features_->convertWorld(vec_tmp, false);
       item_tmp.label = box.label;
       result.push_back(item_tmp);
-      ROS_INFO("%s:item %s x:%f y:%f z:%f", __FUNCTION__, box.label.c_str(), item_tmp.position.x(), item_tmp.position.y(), item_tmp.position.z());
+      ROS_WARN("%s:item %s x:%f y:%f z:%f", __FUNCTION__, box.label.c_str(), item_tmp.position.x(), item_tmp.position.y(), item_tmp.position.z());
     }
-    ROS_INFO("%s:%d items are found", __FUNCTION__, id);
+    ROS_WARN("%s:%d items are found", __FUNCTION__, id);
     // refresh msg
     fcn_msg_ = aero_recognition_msgs::LabeledPoseArray();
 
