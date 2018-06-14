@@ -102,6 +102,8 @@ namespace aero {
 
   public: bool placeCoffeeReturn();
 
+  public: bool relativeManip(const aero::Vector3 &_pos, const aero::Vector3 &_rot, const bool &_use_lifter);
+
     // look motions
 
   public: bool poseAndRecognize(const std::string _location, const std::string _item, Eigen::Vector3d& _pos, float _lifter_z=-0.25);

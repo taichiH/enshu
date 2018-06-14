@@ -343,7 +343,8 @@ namespace aero {
       setUsingArm(_arm);
     return true;
 #endif
-    controller_->sendGrasp(_arm, 50);
+    // controller_->sendGrasp(_arm, 100);
+    controller_->sendGrasp(_arm, 100);
     usleep(500 * 1000);
     controller_->setRobotStateToCurrentState();
     double index = controller_->kinematic_state->getVariablePosition("r_indexbase_joint");
@@ -566,6 +567,32 @@ namespace aero {
     tra_release.push_back(tra_.at(0));
     controller_->sendTrajectory(tra_release, calcTrajectoryTimes(tra_release, 0.8), aero::ikrange::wholebody);
     controller_->waitInterpolation();
+    return true;
+  }
+
+  bool DevelLib::relativeManip(const aero::Vector3 &_pos, const aero::Vector3 &_rot, const bool &_use_lifter) {
+    auto p = controller_->getEEFPosition(aero::arm::rarm, aero::eef::grasp);
+    auto q = controller_->getEEFOrientation(aero::arm::rarm, aero::eef::grasp);
+    aero::Translation pos = {p.x() + _pos.x(), p.y() + _pos.y(), p.z() + _pos.z()};
+    // aero::Quaternion rot = getRotationQuaternion("y", _rot.y() * M_PI / 180.0)
+    //   * getRotationQuaternion("x", _rot.x() * M_PI / 180.0)
+    //   * getRotationQuaternion("z", _rot.z() * M_PI / 180.0);
+    aero::Transform pose = pos * q;
+    bool ik = controller_->setFromIK(aero::arm::rarm, aero::ikrange::wholebody, pose, aero::eef::grasp);
+    if (ik) {
+      ROS_INFO("relative ik success !!!");
+      controller_->sendModelAngles(3000);
+      sleep(3);
+    } else {
+      ROS_WARN("ik failed");
+      if(_use_lifter){
+        controller_->setLifter(_pos.x(), _pos.y());
+        controller_->sendLifter(_pos.x(), _pos.y());
+        return true;
+      }
+      return false;
+    }
+
     return true;
   }
 
