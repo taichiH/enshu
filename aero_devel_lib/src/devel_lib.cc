@@ -477,7 +477,7 @@ namespace aero {
     ROS_INFO("called %s", __FUNCTION__);
     _pos.z() += _offset.z();
     placeCoffeeReach(_pos, _offset.y(), _arm);
-    graspCoffee(_arm);
+    controller_->sendGrasp(_arm, 100);
     placeCoffeeReturn();
     return true;
   }
