@@ -9,6 +9,7 @@ find_package(catkin REQUIRED
   jsk_recognition_msgs
   eigen_conversions
   message_generation
+  linemod_msgs
 )
 
 find_package(Boost REQUIRED COMPONENTS filesystem system signals thread)
@@ -23,7 +24,7 @@ catkin_package(
   INCLUDE_DIRS include
   LIBRARIES aero_devel_lib
   CATKIN_DEPENDS
-  roscpp tf std_msgs sensor_msgs geometry_msgs roslib aero_std aero_recognition_msgs jsk_recognition_msgs
+  roscpp tf std_msgs sensor_msgs geometry_msgs roslib aero_std aero_recognition_msgs jsk_recognition_msgs linemod_msgs
 )
 
 add_definitions(-std=c++11)
