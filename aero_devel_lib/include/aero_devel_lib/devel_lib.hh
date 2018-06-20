@@ -17,6 +17,8 @@
 #include <tf/transform_listener.h>
 #include <ar_track_alvar_msgs/AlvarMarkers.h>
 #include <geometry_msgs/PoseWithCovarianceStamped.h>
+#include <linemod_msgs/Scored2DBoxArray.h>
+#include <linemod_msgs/Scored2DBox.h>
 
 namespace aero {
 
@@ -53,6 +55,8 @@ namespace aero {
   public: void speakAsync(const std::string &_speech);
 
   public: bool resetTmp(bool wholebody=true);
+
+  public: bool watchPose();
 
   public: bool makeTopGrasp(const aero::arm _arm, const Eigen::Vector3d _pos, aero::trajectory& _tra);
 
@@ -134,6 +138,8 @@ namespace aero {
 
   public: std::vector<aero::Vector3> recognizeCentroid();
 
+  public: std::vector<linemod_msgs::Scored2DBox> recognizeLinemodBoxes();
+
   // public: std::vector<std::vector<aero::Vector3>> recognizePolygon();
 
   public: bool findItem(std::string _label, std::vector<Eigen::Vector3d> &_positions);
@@ -151,6 +157,8 @@ namespace aero {
   private: void boxCallback_(const jsk_recognition_msgs::BoundingBoxArray::ConstPtr _clustered_boxes);
 
   private: void centroidCallback_(const geometry_msgs::PoseArray::ConstPtr _centroid_msgs);
+
+  private: void linemodCallback(const linemod_msgs::Scored2DBoxArray _linemod_boxes);
 
   // private: void polygonCallback_(const jsk_recognition_msgs::PolygonArray _polygons);
 
@@ -235,6 +243,8 @@ namespace aero {
 
   private: jsk_recognition_msgs::BoundingBoxArray bounding_box_msg_;
 
+  private: linemod_msgs::Scored2DBoxArray linemod_box_msg_;
+
   private: geometry_msgs::PoseArray centroid_msg_;
 
   // private: jsk_recognition_msgs::PolygonArray polygon_msg_;
@@ -252,6 +262,8 @@ namespace aero {
   private: ros::Subscriber hand_sub_;
 
   private: ros::Subscriber box_sub_;
+
+  private: ros::Subscriber linemod_sub_;
 
   private: ros::Subscriber centroid_sub_;
 

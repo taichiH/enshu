@@ -16,6 +16,7 @@ namespace aero {
     fcn_sub_ = nh_.subscribe("/object_3d_projector_/output", 1, &DevelLib::fcnCallback_, this);
     hand_sub_ = nh_.subscribe("/hand_detector/boxes", 1, &DevelLib::handCallback_, this);
     box_sub_ = nh_.subscribe("/segmentation_decomposer/boxes", 1, &DevelLib::boxCallback_, this);
+    linemod_sub_ = nh_.subscribe("/linemod_no_depth/box_out", 1, &DevelLib::linemodCallback, this);
     // polygon_sub_ = nh_.subscribe("/polygon_magnifier/output", 1, &DevelLib::polygonCallback_, this);
     centroid_sub_ = nh_.subscribe("/segmentation_decomposer/centroid_pose_array", 1, &DevelLib::centroidCallback_, this);
     fcn_starter_ = nh_.serviceClient<std_srvs::SetBool>("/object_detector/set_mode");
@@ -49,24 +50,7 @@ namespace aero {
   //////////////////////////////////////////////////////////
   bool DevelLib::resetTmp(bool wholebody){
     // reset both arm
-    aero::Translation r_pos(0.45, -0.267, 1.369);
-    aero::Quaternion r_rot(0.858, -0.060, -0.486, -0.158);
-    aero::Transform r_pose = r_pos * r_rot;
-    bool r_ik_result = controller_->setFromIK(aero::arm::rarm, aero::ikrange::wholebody, r_pose, aero::eef::grasp);
-
-    aero::Translation l_pos(0.45, 0.267, 1.369);
-    aero::Quaternion l_rot(0.857, 0.060, -0.486, 0.158);
-    aero::Transform l_pose = l_pos * l_rot;
-    bool l_ik_result = controller_->setFromIK(aero::arm::larm, aero::ikrange::arm, l_pose, aero::eef::grasp);
-
-    if (r_ik_result && l_ik_result) {
-      ROS_INFO("both ik success !!!");
-      controller_->sendModelAngles(3000);
-      sleep(3);
-    } else {
-      ROS_WARN("both ik failed");
-      return false;
-    }
+    std::vector<double> angle_vector;
 
     if(wholebody){
       // lift up lifter
@@ -75,21 +59,17 @@ namespace aero {
       usleep(5000 * 1000);
 
       // reset waist link
-      ROS_INFO("reset waist y");
       double waist_y_to = 0.0;
       aero::joint_angle_map joint_angles;
       controller_->getRobotStateVariables(joint_angles);
       joint_angles[aero::joint::waist_y] = waist_y_to;
-
       controller_->setRobotStateVariables(joint_angles);
       controller_->sendModelAngles(2000);// send to robot
       sleep(3);
 
-      ROS_INFO("reset waist p");
       double waist_p_to = 0.0;
       controller_->getRobotStateVariables(joint_angles);
       joint_angles[aero::joint::waist_p] = waist_p_to;
-
       controller_->setRobotStateVariables(joint_angles);
       controller_->sendModelAngles(2000);// send to robot
       sleep(3);
@@ -97,31 +77,28 @@ namespace aero {
       double waist_r_to = 0.0;
       controller_->getRobotStateVariables(joint_angles);
       joint_angles[aero::joint::waist_r] = waist_r_to;
-
       controller_->setRobotStateVariables(joint_angles);
       controller_->sendModelAngles(2000);// send to robot
       sleep(3);
-
-      // reset both arm
-      r_pos = {0.296, -0.267, 1.369};
-      r_rot = {0.858, -0.060, -0.486, -0.158};
-      r_pose = r_pos * r_rot;
-      r_ik_result = controller_->setFromIK(aero::arm::rarm, aero::ikrange::wholebody, r_pose, aero::eef::grasp);
-
-      l_pos = {0.296, 0.267, 1.369};
-      l_rot = {0.857, 0.060, -0.486, 0.158};
-      l_pose = l_pos * l_rot;
-      l_ik_result = controller_->setFromIK(aero::arm::larm, aero::ikrange::arm, l_pose, aero::eef::grasp);
-
-      if (r_ik_result && l_ik_result) {
-        ROS_INFO("both ik success !!!");
-        controller_->sendModelAngles(3000);
-        sleep(3);
-      } else {
-        ROS_WARN("both ik failed");
-        return false;
-      }
     }
+
+    return true;
+  }
+
+  //////////////////////////////////////////////////////////
+  bool DevelLib::watchPose(){
+    double waist_p_to = 0.7;
+    aero::joint_angle_map joint_angles;
+    controller_->getRobotStateVariables(joint_angles);
+    joint_angles[aero::joint::waist_p] = waist_p_to;
+    controller_->setRobotStateVariables(joint_angles);
+    controller_->sendModelAngles(2000);
+
+    double neck_p_to = 0.7;
+    controller_->getRobotStateVariables(joint_angles);
+    joint_angles[aero::joint::neck_p] = neck_p_to;
+    controller_->setRobotStateVariables(joint_angles);
+    controller_->sendModelAngles(2000);
 
     return true;
   }
@@ -572,12 +549,12 @@ namespace aero {
 
   bool DevelLib::relativeManip(const aero::Vector3 &_pos, const aero::Vector3 &_rot, const bool &_use_lifter) {
     auto p = controller_->getEEFPosition(aero::arm::rarm, aero::eef::grasp);
-    auto q = controller_->getEEFOrientation(aero::arm::rarm, aero::eef::grasp);
+    // auto q = controller_->getEEFOrientation(aero::arm::rarm, aero::eef::grasp);
     aero::Translation pos = {p.x() + _pos.x(), p.y() + _pos.y(), p.z() + _pos.z()};
-    // aero::Quaternion rot = getRotationQuaternion("y", _rot.y() * M_PI / 180.0)
-    //   * getRotationQuaternion("x", _rot.x() * M_PI / 180.0)
-    //   * getRotationQuaternion("z", _rot.z() * M_PI / 180.0);
-    aero::Transform pose = pos * q;
+    aero::Quaternion rot = getRotationQuaternion("y", _rot.y() * M_PI / 180.0)
+      * getRotationQuaternion("x", _rot.x() * M_PI / 180.0)
+      * getRotationQuaternion("z", _rot.z() * M_PI / 180.0);
+    aero::Transform pose = pos * rot;
     bool ik = controller_->setFromIK(aero::arm::rarm, aero::ikrange::wholebody, pose, aero::eef::grasp);
     if (ik) {
       ROS_INFO("relative ik success !!!");
@@ -738,6 +715,23 @@ namespace aero {
   }
 
   //////////////////////////////////////////////////////////
+  std::vector<linemod_msgs::Scored2DBox> DevelLib::recognizeLinemodBoxes() {
+    linemod_box_msg_ = linemod_msgs::Scored2DBoxArray();
+    ros::Time now = ros::Time::now();
+    for (int i = 0; i < 20; ++i) {
+      ros::spinOnce();
+      if (linemod_box_msg_.header.stamp > now) break;
+      usleep(100 * 1000);
+    }
+    std::vector<linemod_msgs::Scored2DBox> result;
+    linemod_msgs::Scored2DBox linemod_box;
+    for (auto box : linemod_box_msg_.boxes) {
+      result.push_back(box);
+    }
+    return result;
+  }
+
+  //////////////////////////////////////////////////////////
   std::vector<aero::box> DevelLib::recognizeBoxes() {
     bounding_box_msg_ = jsk_recognition_msgs::BoundingBoxArray();
     std::vector<aero::box> result;
@@ -851,7 +845,6 @@ namespace aero {
 
   //////////////////////////////////////////////////////////
   bool DevelLib::findItem(std::string _label, std::vector<Eigen::Vector3d> &_positions) {
-    std::cerr << "3!!!!!!!!!!!!!!!" << std::endl;
     _positions.clear();
     std::vector<aero::item> items = recognizeItems();
 
@@ -952,6 +945,10 @@ namespace aero {
   //////////////////////////////////////////////////////////
   void DevelLib::boxCallback_(const jsk_recognition_msgs::BoundingBoxArray::ConstPtr _clustered_boxes) {
     bounding_box_msg_ = *_clustered_boxes;
+  }
+
+  void DevelLib::linemodCallback(const linemod_msgs::Scored2DBoxArray _linemod_boxes){
+    linemod_box_msg_ = _linemod_boxes;
   }
 
   //////////////////////////////////////////////////////////
