@@ -24,6 +24,7 @@ namespace aero {
     ar_start_pub_ = nh_.advertise<std_msgs::Bool>("/ar_track_alvar/enable_detection", 1);
     initialpose_pub_ = nh_.advertise<geometry_msgs::PoseWithCovarianceStamped>("/initialpose", 1);
     speak_pub_ = nh_.advertise<std_msgs::String>("/windows/voice", 10);
+    linemod_client = nh_.serviceClient<std_srvs::Empty>("/online_matching_flag");
   }
 
   //////////////////////////////////////////////////////////
@@ -104,7 +105,7 @@ namespace aero {
   }
 
   //////////////////////////////////////////////////////////
-  bool DevelLib::makeTopGrasp(const aero::arm _arm, const Eigen::Vector3d _pos, aero::trajectory& _tra) {
+  bool DevelLib::makeTopGrasp(const aero::arm _arm, const Eigen::Vector3d _pos, aero::trajectory& _tra, const float y_rot) {
     // diffs
     Eigen::Vector3d end_diff, mid_diff, mid2_diff, mid3_diff, mid4_diff, entry_diff, offset;
     end_diff = {0.0 ,0.0, -0.03};
@@ -118,17 +119,18 @@ namespace aero {
     // rotations
     Eigen::Quaterniond end_qua, mid_qua, entry_qua;
     if(_arm == aero::arm::larm) {
-      end_qua = getRotationQuaternion("y", 30.0 * M_PI / 180.0)
+      end_qua = getRotationQuaternion("y", 45.0 * M_PI / 180.0)
         * getRotationQuaternion("x", 90.0 * M_PI / 180.0);
-      mid_qua = getRotationQuaternion("y", 30.0 * M_PI / 180.0)
+      mid_qua = getRotationQuaternion("y", 45.0 * M_PI / 180.0)
         * getRotationQuaternion("x", 90.0 * M_PI / 180.0);
       entry_qua = getRotationQuaternion("x", 90.0 * M_PI / 180.0);
     } else {
-      end_qua = getRotationQuaternion("y", 30.0 * M_PI / 180.0)
+      end_qua = getRotationQuaternion("y", y_rot * M_PI / 180.0)
         * getRotationQuaternion("x", -90.0 * M_PI / 180.0);
-      mid_qua = getRotationQuaternion("y", 30.0 * M_PI / 180.0)
+      mid_qua = getRotationQuaternion("y", y_rot * M_PI / 180.0)
         * getRotationQuaternion("x", -90.0 * M_PI / 180.0);
-      entry_qua = getRotationQuaternion("x", -90.0 * M_PI / 180.0);
+      entry_qua = getRotationQuaternion("y", y_rot * M_PI / 180.0)
+        * getRotationQuaternion("x", -90.0 * M_PI / 180.0);
     }
 
     aero::Transform end_pose, mid_pose, mid2_pose, mid3_pose, mid4_pose, entry_pose;
@@ -497,19 +499,23 @@ namespace aero {
 
 
   //////////////////////////////////////////////////////////
-  bool DevelLib::placeCoffeeReach(Eigen::Vector3d _pos, double _offset_y, aero::arm _arm) {
-    controller_->setPoseVariables(aero::pose::reset_manip);
-    // controller_->resetLookAt();
-    std::map<aero::joint, double> av;
-    controller_->getRobotStateVariables(av);
-    controller_->sendModelAngles(calcPathTime(av, 0.8));
-    bool wait_flag = controller_->waitInterpolation(0.1);
+  bool DevelLib::placeCoffeeReach(Eigen::Vector3d _pos, double _offset_y, aero::arm _arm, const float y_rot, const bool reset) {
+
+    if(reset){
+      ROS_INFO("reset pose");
+      controller_->setPoseVariables(aero::pose::reset_manip);
+      // controller_->resetLookAt();
+      std::map<aero::joint, double> av;
+      controller_->getRobotStateVariables(av);
+      controller_->sendModelAngles(calcPathTime(av, 0.8));
+      bool wait_flag = controller_->waitInterpolation(0.1);
+    }
 
     double factor = 0.8;
 
     tra_.clear();
     // make trajectory
-    bool res = makeTopGrasp(_arm, _pos, tra_);
+    bool res = makeTopGrasp(_arm, _pos, tra_, y_rot);
 
     if (!res) {
       ROS_WARN("%s: place ik failed", __FUNCTION__);
@@ -547,14 +553,20 @@ namespace aero {
     return true;
   }
 
-  bool DevelLib::relativeManip(const aero::Vector3 &_pos, const aero::Vector3 &_rot, const bool &_use_lifter) {
+  bool DevelLib::relativeManip(const aero::Vector3 &_pos, const aero::Vector3 &_rot,
+                               const bool &_use_lifter, const bool &_use_abs_rot) {
     auto p = controller_->getEEFPosition(aero::arm::rarm, aero::eef::grasp);
-    // auto q = controller_->getEEFOrientation(aero::arm::rarm, aero::eef::grasp);
+    auto q = controller_->getEEFOrientation(aero::arm::rarm, aero::eef::grasp);
     aero::Translation pos = {p.x() + _pos.x(), p.y() + _pos.y(), p.z() + _pos.z()};
-    aero::Quaternion rot = getRotationQuaternion("y", _rot.y() * M_PI / 180.0)
-      * getRotationQuaternion("x", _rot.x() * M_PI / 180.0)
-      * getRotationQuaternion("z", _rot.z() * M_PI / 180.0);
-    aero::Transform pose = pos * rot;
+    aero::Transform pose;
+    if(_use_abs_rot){
+      aero::Quaternion rot = getRotationQuaternion("y", _rot.y() * M_PI / 180.0)
+        * getRotationQuaternion("x", _rot.x() * M_PI / 180.0);
+      pose = pos * rot;
+    } else {
+      pose = pos * q;
+    }
+
     bool ik = controller_->setFromIK(aero::arm::rarm, aero::ikrange::wholebody, pose, aero::eef::grasp);
     if (ik) {
       ROS_INFO("relative ik success !!!");
@@ -649,6 +661,19 @@ namespace aero {
     else
       ROS_INFO("%s: FCN start", __FUNCTION__);
     return;
+  }
+
+  //////////////////////////////////////////////////////////
+  bool DevelLib::startOnlineMatching(){
+    ROS_INFO("start oneline matching");
+    std_srvs::Empty::Request req;
+    std_srvs::Empty::Response res;
+    bool start = linemod_client.call(req, res);
+    if(start){
+      return true;
+    } else {
+      return false;
+    }
   }
 
   //////////////////////////////////////////////////////////
@@ -918,6 +943,30 @@ namespace aero {
     }
 
     return true;
+  }
+
+
+  //////////////////////////////////////////////////////////
+  bool DevelLib::findLinemodBoxes(std::vector<linemod_msgs::Scored2DBox> &_boxes){
+    _boxes.clear();
+    _boxes = recognizeLinemodBoxes();
+
+    if(!_boxes.empty()){
+      for(auto box : _boxes){
+        float center_x = box.x + (box.width * 0.5);
+        float center_y = box.y + (box.height + 0.5);
+        ROS_INFO("%s, score: %d, center: (%f, %f)",
+                 box.label,
+                 static_cast<int>(box.score),
+                 static_cast<float>(center_x),
+                 static_cast<float>(center_y)
+                 );
+      }
+      return true;
+    } else {
+      ROS_INFO("not found linemod matching result");
+      return false;
+    }
   }
 
 
@@ -1315,14 +1364,9 @@ namespace aero {
   }
 
   //////////////////////////////////////////////////////////
-  bool DevelLib::calcAdjustmentError(std::vector<aero::Vector3> &_r_contact_point, std::vector<aero::Vector3> &_l_contact_point){
+  bool DevelLib::calcAdjustmentError(std::vector<linemod_msgs::Scored2DBox> &_boxes){
     // todo calculate adjustment error
     ROS_INFO("%s is called", __FUNCTION__);
-
-    std::vector<aero::box> boxes = recognizeBoxes();
-    // distinct boxes to pre box and current box
-    distinctTwoBox(boxes);
-    getContactPoints(boxes, _r_contact_point, _l_contact_point);
 
     return true;
   }

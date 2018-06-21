@@ -58,7 +58,7 @@ namespace aero {
 
   public: bool watchPose();
 
-  public: bool makeTopGrasp(const aero::arm _arm, const Eigen::Vector3d _pos, aero::trajectory& _tra);
+  public: bool makeTopGrasp(const aero::arm _arm, const Eigen::Vector3d _pos, aero::trajectory& _tra, const float y_rot=45.0);
 
   public: bool makeSideGrasp(const aero::arm _arm, const Eigen::Vector3d _pos, aero::trajectory& _tra);
     // grasp coffee
@@ -101,12 +101,14 @@ namespace aero {
 
   public: bool sideGraspReach(Eigen::Vector3d _pos, double _offset_x, aero::arm _arm);
 
-  public: bool placeCoffeeReach(Eigen::Vector3d _pos=Eigen::Vector3d(0.75, -0.25, 1.05), double _offset_y=0.0, aero::arm _arm=aero::arm::rarm);
+  public: bool placeCoffeeReach(Eigen::Vector3d _pos=Eigen::Vector3d(0.75, -0.25, 1.05), double _offset_y=0.0, aero::arm _arm=aero::arm::rarm, const float y_rot=45.0, const bool reset=true);
   public: void sendResetPose();
 
   public: bool placeCoffeeReturn();
 
-  public: bool relativeManip(const aero::Vector3 &_pos, const aero::Vector3 &_rot, const bool &_use_lifter);
+  public: bool relativeManip(const aero::Vector3 &_pos, const aero::Vector3 &_rot, const bool &_use_lifter, const bool &_use_abs_rot=true);
+
+  public: bool startOnlineMatching();
 
     // look motions
 
@@ -149,6 +151,8 @@ namespace aero {
   public: bool findBoxes(std::vector<aero::Vector3> &_positions);
 
   public: bool findCentroid(std::vector<aero::Vector3> &_positions);
+
+  public: bool findLinemodBoxes(std::vector<linemod_msgs::Scored2DBox> &boxes);
 
   public: void stopFCN();
 
@@ -199,7 +203,7 @@ namespace aero {
                                 std::vector<aero::Vector3> &_r_contact_point,
                                 std::vector<aero::Vector3> &_l_contact_point);
 
-  public: bool calcAdjustmentError(std::vector<aero::Vector3> &_r_contact_point, std::vector<aero::Vector3> &_l_contact_point);
+  public: bool calcAdjustmentError(std::vector<linemod_msgs::Scored2DBox> &_boxes);
 
   public: bool calcAdjustmentError(aero::baserot _base);
 
@@ -280,6 +284,8 @@ namespace aero {
   private: ros::Publisher ar_start_pub_;
 
   private: ros::Publisher initialpose_pub_;
+
+  private: ros::ServiceClient linemod_client;
 
   private: ar_track_alvar_msgs::AlvarMarkers ar_msg_;
 
