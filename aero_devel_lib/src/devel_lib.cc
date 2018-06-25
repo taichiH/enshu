@@ -19,12 +19,13 @@ namespace aero {
     linemod_sub_ = nh_.subscribe("/linemod_no_depth/box_out", 1, &DevelLib::linemodCallback, this);
     // polygon_sub_ = nh_.subscribe("/polygon_magnifier/output", 1, &DevelLib::polygonCallback_, this);
     centroid_sub_ = nh_.subscribe("/segmentation_decomposer/centroid_pose_array", 1, &DevelLib::centroidCallback_, this);
+    ategi_sub_  = nh_.subscribe("online_template_creator/ategi_out", 1, &DevelLib::ategiCallback_, this);
     fcn_starter_ = nh_.serviceClient<std_srvs::SetBool>("/object_detector/set_mode");
     ar_sub_ = nh_.subscribe("/ar_pose_marker", 1, &DevelLib::arMarkerCallback_, this);
     ar_start_pub_ = nh_.advertise<std_msgs::Bool>("/ar_track_alvar/enable_detection", 1);
     initialpose_pub_ = nh_.advertise<geometry_msgs::PoseWithCovarianceStamped>("/initialpose", 1);
     speak_pub_ = nh_.advertise<std_msgs::String>("/windows/voice", 10);
-    linemod_client = nh_.serviceClient<std_srvs::Empty>("/online_matching_flag");
+    linemod_client = nh_.serviceClient<std_srvs::Empty>("/online_template_creator/create_frag");
   }
 
   //////////////////////////////////////////////////////////
@@ -88,18 +89,24 @@ namespace aero {
 
   //////////////////////////////////////////////////////////
   bool DevelLib::watchPose(){
+    controller_->setLifter(0, 0);
+    controller_->sendLifter(0, 0);
+
+
     double waist_p_to = 0.7;
     aero::joint_angle_map joint_angles;
     controller_->getRobotStateVariables(joint_angles);
     joint_angles[aero::joint::waist_p] = waist_p_to;
     controller_->setRobotStateVariables(joint_angles);
     controller_->sendModelAngles(2000);
+    usleep(3000 * 1000);
 
     double neck_p_to = 0.7;
     controller_->getRobotStateVariables(joint_angles);
     joint_angles[aero::joint::neck_p] = neck_p_to;
     controller_->setRobotStateVariables(joint_angles);
     controller_->sendModelAngles(2000);
+    usleep(3000 * 1000);
 
     return true;
   }
@@ -610,6 +617,22 @@ namespace aero {
   }
 
   //////////////////////////////////////////////////////////
+  bool DevelLib::startOnlineMatching(){
+    ROS_INFO("start oneline matching");
+    std_srvs::Empty::Request req;
+    std_srvs::Empty::Response res;
+    bool start = linemod_client.call(req, res);
+    if(start){
+      ROS_INFO("service called");
+      return true;
+    } else {
+      ROS_INFO("service not called");
+      return false;
+    }
+  }
+
+
+  //////////////////////////////////////////////////////////
   void DevelLib::lookContainerFront(float _lifter_z) {
     controller_->setPoseVariables(aero::pose::reset_manip);
     controller_->setLifter(0.05, _lifter_z);
@@ -663,18 +686,6 @@ namespace aero {
     return;
   }
 
-  //////////////////////////////////////////////////////////
-  bool DevelLib::startOnlineMatching(){
-    ROS_INFO("start oneline matching");
-    std_srvs::Empty::Request req;
-    std_srvs::Empty::Response res;
-    bool start = linemod_client.call(req, res);
-    if(start){
-      return true;
-    } else {
-      return false;
-    }
-  }
 
   //////////////////////////////////////////////////////////
   void DevelLib::setFCNModel(std::string _name, int _projector_id) {
@@ -751,6 +762,23 @@ namespace aero {
     std::vector<linemod_msgs::Scored2DBox> result;
     linemod_msgs::Scored2DBox linemod_box;
     for (auto box : linemod_box_msg_.boxes) {
+      result.push_back(box);
+    }
+    return result;
+  }
+
+  //////////////////////////////////////////////////////////
+  std::vector<linemod_msgs::Scored2DBox> DevelLib::recognizeAtegi() {
+    ategi_msg_ = linemod_msgs::Scored2DBoxArray();
+    ros::Time now = ros::Time::now();
+    for (int i = 0; i < 20; ++i) {
+      ros::spinOnce();
+      if (ategi_msg_.header.stamp > now) break;
+      usleep(100 * 1000);
+    }
+    std::vector<linemod_msgs::Scored2DBox> result;
+    linemod_msgs::Scored2DBox ategi;
+    for (auto box : ategi_msg_.boxes) {
       result.push_back(box);
     }
     return result;
@@ -955,12 +983,13 @@ namespace aero {
       for(auto box : _boxes){
         float center_x = box.x + (box.width * 0.5);
         float center_y = box.y + (box.height + 0.5);
-        ROS_INFO("%s, score: %d, center: (%f, %f)",
-                 box.label,
+        ROS_WARN("%s, score: %d,left_top: (%f, %f), box: (%f, %f)",
+                 box.label.c_str(),
                  static_cast<int>(box.score),
-                 static_cast<float>(center_x),
-                 static_cast<float>(center_y)
-                 );
+                 static_cast<float>(box.x),
+                 static_cast<float>(box.y),
+                 static_cast<float>(box.width),
+                 static_cast<float>(box.height));
       }
       return true;
     } else {
@@ -969,6 +998,31 @@ namespace aero {
     }
   }
 
+  //////////////////////////////////////////////////////////
+  bool DevelLib::findAtegi(std::vector<linemod_msgs::Scored2DBox> &_boxes){
+    int index = 0;
+
+    while(1){
+      _boxes.clear();
+      _boxes = recognizeAtegi();
+      if(!_boxes.empty()){
+        for(auto box : _boxes){
+          float center_x = box.x + (box.width * 0.5);
+          float center_y = box.y + (box.height + 0.5);
+          ROS_WARN("%s, score: %d, center: (%f, %f)",
+                   box.label.c_str(),
+                   static_cast<int>(box.score),
+                   static_cast<float>(center_x),
+                   static_cast<float>(center_y)
+                   );
+        }
+        return true;
+      } else {
+        ROS_INFO("try recognize ategi again :%d", index);
+        index++;
+      }
+    }
+  }
 
   //////////////////////////////////////////////////////////
   void DevelLib::stopFCN() {
@@ -996,8 +1050,14 @@ namespace aero {
     bounding_box_msg_ = *_clustered_boxes;
   }
 
-  void DevelLib::linemodCallback(const linemod_msgs::Scored2DBoxArray _linemod_boxes){
-    linemod_box_msg_ = _linemod_boxes;
+  //////////////////////////////////////////////////////////
+  void DevelLib::linemodCallback(const linemod_msgs::Scored2DBoxArray::ConstPtr _linemod_boxes){
+    linemod_box_msg_ = *_linemod_boxes;
+  }
+
+  //////////////////////////////////////////////////////////
+  void DevelLib::ategiCallback_(const linemod_msgs::Scored2DBoxArray::ConstPtr _ategi){
+    ategi_msg_ = *_ategi;
   }
 
   //////////////////////////////////////////////////////////
@@ -1364,23 +1424,47 @@ namespace aero {
   }
 
   //////////////////////////////////////////////////////////
-  bool DevelLib::calcAdjustmentError(std::vector<linemod_msgs::Scored2DBox> &_boxes){
-    // todo calculate adjustment error
-    ROS_INFO("%s is called", __FUNCTION__);
-
+  bool DevelLib::calcAdjustmentError(aero::baserot &base){
+    ROS_WARN("not recommend use this method");
     return true;
   }
 
   //////////////////////////////////////////////////////////
-  bool DevelLib::calcAdjustmentError(aero::baserot _base){
-    // todo calculate adjustment error
-    ROS_INFO("%s is called", __FUNCTION__);
+  bool DevelLib::calcAdjustmentError(bool &use_base){
+    ROS_INFO("%s", __FUNCTION__);
+    std::vector<linemod_msgs::Scored2DBox> boxes;
+    bool boxes_found = findLinemodBoxes(boxes);
+    if(boxes_found){
+      std::sort(boxes.begin(), boxes.end(),
+                [](const linemod_msgs::Scored2DBox &left,
+                   const linemod_msgs::Scored2DBox &right)
+                {return left.x < right.x;});
+    }
 
-    std::vector<aero::box> boxes = recognizeBoxes();
-    // distinct boxes to pre box and current box
-    distinctTwoBox(boxes);
+    std::vector<linemod_msgs::Scored2DBox> ategi;
+    bool ategi_found = findAtegi(ategi);
+    if(ategi_found){
+      int ategi_left = static_cast<int>(ategi.at(0).x);
+      int box_right = static_cast<int>(boxes.at(0).x + boxes.at(0).width);
+      int error = ategi_left - box_right;
+      ROS_INFO("====================================");
+      ROS_INFO("ategi left: %d", ategi_left);
+      ROS_INFO("box right: %d", box_right);
+      ROS_INFO("error: %d", error);
+      ROS_INFO("====================================");
 
-    return true;
+      if(error > 120){
+        controller_->goPos(0.0, 0.1, 0.0);
+        use_base = true;
+      }
+
+      if(error < 0)
+        return false;
+
+    } else {
+      ROS_WARN("ategi not found");
+      return true;
+    }
   }
 
   //////////////////////////////////////////////////////////

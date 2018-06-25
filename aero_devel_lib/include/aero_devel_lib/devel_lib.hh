@@ -142,6 +142,8 @@ namespace aero {
 
   public: std::vector<linemod_msgs::Scored2DBox> recognizeLinemodBoxes();
 
+  public: std::vector<linemod_msgs::Scored2DBox> recognizeAtegi();
+
   // public: std::vector<std::vector<aero::Vector3>> recognizePolygon();
 
   public: bool findItem(std::string _label, std::vector<Eigen::Vector3d> &_positions);
@@ -154,6 +156,8 @@ namespace aero {
 
   public: bool findLinemodBoxes(std::vector<linemod_msgs::Scored2DBox> &boxes);
 
+  public: bool findAtegi(std::vector<linemod_msgs::Scored2DBox> &boxes);
+
   public: void stopFCN();
 
   private: void fcnCallback_(const aero_recognition_msgs::LabeledPoseArray::ConstPtr _msg);
@@ -162,7 +166,9 @@ namespace aero {
 
   private: void centroidCallback_(const geometry_msgs::PoseArray::ConstPtr _centroid_msgs);
 
-  private: void linemodCallback(const linemod_msgs::Scored2DBoxArray _linemod_boxes);
+  private: void linemodCallback(const linemod_msgs::Scored2DBoxArray::ConstPtr _linemod_boxes);
+
+  private: void ategiCallback_(const linemod_msgs::Scored2DBoxArray::ConstPtr _ategi);
 
   // private: void polygonCallback_(const jsk_recognition_msgs::PolygonArray _polygons);
 
@@ -203,9 +209,9 @@ namespace aero {
                                 std::vector<aero::Vector3> &_r_contact_point,
                                 std::vector<aero::Vector3> &_l_contact_point);
 
-  public: bool calcAdjustmentError(std::vector<linemod_msgs::Scored2DBox> &_boxes);
+  public: bool calcAdjustmentError(bool &use_base);
 
-  public: bool calcAdjustmentError(aero::baserot _base);
+  public: bool calcAdjustmentError(aero::baserot &base);
 
   public: bool makeAdjustableTrajectory(std::vector<aero::trajectory> &_adjust_tra, const std::vector<aero::Vector3> &_r_contact_point,const std::vector<aero::Vector3> &_l_contact_point, aero::arm _arm, aero::trajectory &_tra);
 
@@ -249,6 +255,8 @@ namespace aero {
 
   private: linemod_msgs::Scored2DBoxArray linemod_box_msg_;
 
+  private: linemod_msgs::Scored2DBoxArray ategi_msg_;
+
   private: geometry_msgs::PoseArray centroid_msg_;
 
   // private: jsk_recognition_msgs::PolygonArray polygon_msg_;
@@ -272,6 +280,8 @@ namespace aero {
   private: ros::Subscriber centroid_sub_;
 
   private: ros::Subscriber polygon_sub_;
+
+  private: ros::Subscriber ategi_sub_;
 
   // private: ros::Subscriber cluster_sub_;
 
