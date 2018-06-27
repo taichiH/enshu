@@ -464,6 +464,16 @@ namespace aero {
     _pos.z() += _offset.z();
     placeCoffeeReach(_pos, _offset.y(), _arm);
     controller_->sendGrasp(_arm, 100);
+    if(_arm == aero::arm::rarm){
+      ROS_WARN("send hand to rarm");
+      controller_->sendGrasp(_arm, 100);
+      // controller_->sendHand(_arm, -0.1, 3.0);
+    } else {
+      ROS_WARN("send hand to larm");
+      controller_->sendGrasp(_arm, 100);
+      // controller_->sendHand(_arm, 0.1, 3.0);
+    }
+
     placeCoffeeReturn();
     return true;
   }
@@ -719,7 +729,7 @@ namespace aero {
   }
 
   //////////////////////////////////////////////////////////
-  std::vector<aero::item> DevelLib::recognizeItems() {
+  std::vector<aero::item> DevelLib::recognizeItems(bool _debug) {
     startFCN();
     fcn_msg_ = aero_recognition_msgs::LabeledPoseArray();
     std::vector<aero::item> result;
@@ -741,7 +751,8 @@ namespace aero {
       item_tmp.position = features_->convertWorld(vec_tmp, false);
       item_tmp.label = box.label;
       result.push_back(item_tmp);
-      ROS_WARN("%s:item %s x:%f y:%f z:%f", __FUNCTION__, box.label.c_str(), item_tmp.position.x(), item_tmp.position.y(), item_tmp.position.z());
+      if(_debug)
+        ROS_WARN("%s:item %s x:%f y:%f z:%f", __FUNCTION__, box.label.c_str(), item_tmp.position.x(), item_tmp.position.y(), item_tmp.position.z());
     }
     ROS_WARN("%s:%d items are found", __FUNCTION__, id);
     // refresh msg
@@ -751,7 +762,7 @@ namespace aero {
   }
 
   //////////////////////////////////////////////////////////
-  std::vector<linemod_msgs::Scored2DBox> DevelLib::recognizeLinemodBoxes() {
+  std::vector<linemod_msgs::Scored2DBox> DevelLib::recognizeLinemodBoxes(std::string name) {
     linemod_box_msg_ = linemod_msgs::Scored2DBoxArray();
     ros::Time now = ros::Time::now();
     for (int i = 0; i < 20; ++i) {
@@ -762,7 +773,9 @@ namespace aero {
     std::vector<linemod_msgs::Scored2DBox> result;
     linemod_msgs::Scored2DBox linemod_box;
     for (auto box : linemod_box_msg_.boxes) {
-      result.push_back(box);
+      if(box.label == name)
+        ROS_WARN("box.label: %s", box.label.c_str());
+        result.push_back(box);
     }
     return result;
   }
@@ -897,9 +910,9 @@ namespace aero {
   }
 
   //////////////////////////////////////////////////////////
-  bool DevelLib::findItem(std::string _label, std::vector<Eigen::Vector3d> &_positions) {
+  bool DevelLib::findItem(std::string _label, std::vector<Eigen::Vector3d> &_positions, bool _debug) {
     _positions.clear();
-    std::vector<aero::item> items = recognizeItems();
+    std::vector<aero::item> items = recognizeItems(_debug);
 
     if (items.empty()) {
       ROS_INFO("%s: no items found", __FUNCTION__);
@@ -975,9 +988,9 @@ namespace aero {
 
 
   //////////////////////////////////////////////////////////
-  bool DevelLib::findLinemodBoxes(std::vector<linemod_msgs::Scored2DBox> &_boxes){
+  bool DevelLib::findLinemodBoxes(std::vector<linemod_msgs::Scored2DBox> &_boxes, std::string name){
     _boxes.clear();
-    _boxes = recognizeLinemodBoxes();
+    _boxes = recognizeLinemodBoxes(name);
 
     if(!_boxes.empty()){
       for(auto box : _boxes){
@@ -1430,10 +1443,11 @@ namespace aero {
   }
 
   //////////////////////////////////////////////////////////
-  bool DevelLib::calcAdjustmentError(bool &use_base){
+  bool DevelLib::calcAdjustmentError(bool &use_base, std::string _name,
+                                     int &_r_error, int &_l_error){
     ROS_INFO("%s", __FUNCTION__);
     std::vector<linemod_msgs::Scored2DBox> boxes;
-    bool boxes_found = findLinemodBoxes(boxes);
+    bool boxes_found = findLinemodBoxes(boxes, _name);
     if(boxes_found){
       std::sort(boxes.begin(), boxes.end(),
                 [](const linemod_msgs::Scored2DBox &left,
@@ -1444,21 +1458,48 @@ namespace aero {
     std::vector<linemod_msgs::Scored2DBox> ategi;
     bool ategi_found = findAtegi(ategi);
     if(ategi_found){
-      int ategi_left = static_cast<int>(ategi.at(0).x);
-      int box_right = static_cast<int>(boxes.at(0).x + boxes.at(0).width);
-      int error = ategi_left - box_right;
-      ROS_INFO("====================================");
-      ROS_INFO("ategi left: %d", ategi_left);
-      ROS_INFO("box right: %d", box_right);
-      ROS_INFO("error: %d", error);
-      ROS_INFO("====================================");
+      // left hand x < right hand x
+      std::sort(ategi.begin(), ategi.end(),
+                [](const linemod_msgs::Scored2DBox &left,
+                   const linemod_msgs::Scored2DBox &right)
+                {return left.x < right.x;});
 
-      if(error > 120){
+      int l_ategi_right = static_cast<int>(ategi.at(0).x + ategi.at(0).width);
+      int r_ategi_left = static_cast<int>(ategi.at(1).x);
+      int box_right = static_cast<int>(boxes.at(0).x + boxes.at(0).width);
+      int box_left = static_cast<int>(boxes.at(0).x);
+      int r_error = r_ategi_left - box_right;
+      int l_error = box_left - l_ategi_right;
+      int error = (boxes.at(1).x + boxes.at(1).width * 0.5)
+        - (boxes.at(0).x + boxes.at(0).width * 0.5);
+
+      ROS_INFO("--------------------------");
+      ROS_INFO("r_error: %d", r_error);
+      ROS_INFO("l_error: %d", l_error);
+      ROS_INFO("--------------------------");
+
+      if(l_error > 0){
+        float l_adjust = 0.47 * l_error * 0.001;
+        ROS_INFO("l_adjust: %f", l_adjust);
+        auto l_p = controller_->getEEFPosition(aero::arm::larm, aero::eef::grasp);
+        auto l_q = controller_->getEEFOrientation(aero::arm::larm, aero::eef::grasp);
+        aero::Translation l_pos = {l_p.x(), l_p.y() - l_adjust, l_p.z()};
+        aero::Transform l_pose = l_pos * l_q;
+        bool l_ik_result = controller_->setFromIK(aero::arm::larm, aero::ikrange::arm, l_pose, aero::eef::grasp);
+        if (l_ik_result) {
+          controller_->sendModelAngles(5000);
+          sleep(5);
+        } else {
+          ROS_INFO("failed l_adjust");
+        }
+      }
+
+      if(r_error > 120){
         controller_->goPos(0.0, 0.1, 0.0);
         use_base = true;
       }
 
-      if(error < 0)
+      if(r_error < 0)
         return false;
 
     } else {
