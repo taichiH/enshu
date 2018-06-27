@@ -132,7 +132,7 @@ namespace aero {
 
   public: void setObject3DProjectorMode(int _id);
 
-  public: std::vector<aero::item> recognizeItems();
+  public: std::vector<aero::item> recognizeItems(bool _debug);
 
   public: std::vector<aero_recognition_msgs::Scored2DBox> recognizeHand();
 
@@ -140,13 +140,13 @@ namespace aero {
 
   public: std::vector<aero::Vector3> recognizeCentroid();
 
-  public: std::vector<linemod_msgs::Scored2DBox> recognizeLinemodBoxes();
+  public: std::vector<linemod_msgs::Scored2DBox> recognizeLinemodBoxes(std::string name);
 
   public: std::vector<linemod_msgs::Scored2DBox> recognizeAtegi();
 
   // public: std::vector<std::vector<aero::Vector3>> recognizePolygon();
 
-  public: bool findItem(std::string _label, std::vector<Eigen::Vector3d> &_positions);
+  public: bool findItem(std::string _label, std::vector<Eigen::Vector3d> &_positions, bool _debug=false);
 
   public: bool findNearestItem(std::string _label,Eigen::Vector3d &_position);
 
@@ -154,7 +154,7 @@ namespace aero {
 
   public: bool findCentroid(std::vector<aero::Vector3> &_positions);
 
-  public: bool findLinemodBoxes(std::vector<linemod_msgs::Scored2DBox> &boxes);
+  public: bool findLinemodBoxes(std::vector<linemod_msgs::Scored2DBox> &boxes, std::string name);
 
   public: bool findAtegi(std::vector<linemod_msgs::Scored2DBox> &boxes);
 
@@ -209,9 +209,12 @@ namespace aero {
                                 std::vector<aero::Vector3> &_r_contact_point,
                                 std::vector<aero::Vector3> &_l_contact_point);
 
-  public: bool calcAdjustmentError(bool &use_base);
+  public: bool calcAdjustmentError(bool &use_base, std::string _name, int &_r_error, int &_l_error);
 
   public: bool calcAdjustmentError(aero::baserot &base);
+
+  public: bool calcAdjustmentError(bool &use_base, std::vector<std::string> _items,
+                                   int &_r_error, int &_l_error);
 
   public: bool makeAdjustableTrajectory(std::vector<aero::trajectory> &_adjust_tra, const std::vector<aero::Vector3> &_r_contact_point,const std::vector<aero::Vector3> &_l_contact_point, aero::arm _arm, aero::trajectory &_tra);
 

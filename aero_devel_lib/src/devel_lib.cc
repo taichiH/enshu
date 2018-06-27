@@ -1478,28 +1478,7 @@ namespace aero {
       ROS_INFO("l_error: %d", l_error);
       ROS_INFO("--------------------------");
 
-      if(l_error > 0){
-        float l_adjust = 0.47 * l_error * 0.001;
-        ROS_INFO("l_adjust: %f", l_adjust);
-        auto l_p = controller_->getEEFPosition(aero::arm::larm, aero::eef::grasp);
-        auto l_q = controller_->getEEFOrientation(aero::arm::larm, aero::eef::grasp);
-        aero::Translation l_pos = {l_p.x(), l_p.y() - l_adjust, l_p.z()};
-        aero::Transform l_pose = l_pos * l_q;
-        bool l_ik_result = controller_->setFromIK(aero::arm::larm, aero::ikrange::arm, l_pose, aero::eef::grasp);
-        if (l_ik_result) {
-          controller_->sendModelAngles(5000);
-          sleep(5);
-        } else {
-          ROS_INFO("failed l_adjust");
-        }
-      }
-
-      if(r_error > 120){
-        controller_->goPos(0.0, 0.1, 0.0);
-        use_base = true;
-      }
-
-      if(r_error < 0)
+      if(error < 0)
         return false;
 
     } else {
@@ -1507,6 +1486,50 @@ namespace aero {
       return true;
     }
   }
+
+  //////////////////////////////////////////////////////////
+  bool DevelLib::calcAdjustmentError(bool &use_base, std::vector<std::string> _items,
+                                     int &_r_error, int &_l_error){
+    ROS_INFO("%s", __FUNCTION__);
+    std::vector<linemod_msgs::Scored2DBox> tmp;
+    std::vector<std::vector<linemod_msgs::Scored2DBox>> boxes;
+    for(int i=0; i<_items.size(); i++){
+      bool boxes_found = findLinemodBoxes(tmp, _items.at(i));
+      if(boxes_found){
+        std::sort(tmp.begin(), tmp.end(),
+                  [](const linemod_msgs::Scored2DBox &left,
+                     const linemod_msgs::Scored2DBox &right)
+                  {return left.y > right.y;});
+      }
+      boxes.push_back(tmp);
+    }
+
+    // 0:pie, 1:juice
+    int pie_left = static_cast<int>(boxes.at(0).at(0).x);
+    int juice_right = static_cast<int>(boxes.at(1).at(0).x + boxes.at(1).at(0).width);
+    int error = pie_left - juice_right;
+    ROS_INFO("---------------------------------");
+    ROS_INFO("pie_left: %d", pie_left);
+    ROS_INFO("juice_right: %d", juice_right);
+    ROS_INFO("error: %d", error);
+    ROS_INFO("---------------------------------");
+
+    if(error < 10){
+      return false;
+    } else {
+      return true;
+    }
+
+    // std::vector<linemod_msgs::Scored2DBox> ategi;
+    // bool ategi_found = findAtegi(ategi);
+    // if(ategi_found){
+    //   // left hand x < right hand x
+    //   std::sort(ategi.begin(), ategi.end(),
+    //             [](const linemod_msgs::Scored2DBox &left,
+    //                const linemod_msgs::Scored2DBox &right)
+    //             {return left.x < right.x;});
+  }
+
 
   //////////////////////////////////////////////////////////
   bool DevelLib::makeAdjustableTrajectory(std::vector<aero::trajectory> &_adjust_tra, const std::vector<aero::Vector3> &_r_contact_point,const std::vector<aero::Vector3> &_l_contact_point, aero::arm _arm, aero::trajectory &_tra){
