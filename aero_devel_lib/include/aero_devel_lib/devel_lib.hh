@@ -17,8 +17,10 @@
 #include <tf/transform_listener.h>
 #include <ar_track_alvar_msgs/AlvarMarkers.h>
 #include <geometry_msgs/PoseWithCovarianceStamped.h>
+#include <geometry_msgs/Pose2D.h>
 #include <linemod_msgs/Scored2DBoxArray.h>
 #include <linemod_msgs/Scored2DBox.h>
+#include <opencv_apps/LineArrayStamped.h>
 
 namespace aero {
 
@@ -85,6 +87,12 @@ namespace aero {
 
   public: bool getNewPutPos(std::vector<Eigen::Vector3d> &_results, std::vector<Eigen::Vector3d> &_pre_results);
 
+  public: bool watchModel();
+
+  public: bool watchDiff(std::vector<float> &_diffs);
+
+  public: bool watchHough(float &_deg, float &_a, float &_py2, float &_px2);
+
   public: bool watchFlag(const double &_norm, const double &_min, double _max, const int &_index);
 
   public: bool watchFlag(const double &_norm, const double &_min, const int &_index);
@@ -96,10 +104,10 @@ namespace aero {
                            aero::arm _arm=aero::arm::rarm);
 
   public: bool holdItemSide(Eigen::Vector3d _pos=Eigen::Vector3d(0.75, -0.25, 1.05),
-                            Eigen::Vector3d _offset=Eigen::Vector3d(0.0, 0.0, 0.0),
+                            aero::Vector3 _offset=aero::Vector3(0.0, 0.0, 0.0),
                             aero::arm _arm=aero::arm::rarm);
 
-  public: bool sideGraspReach(Eigen::Vector3d _pos, double _offset_x, aero::arm _arm);
+  public: bool sideGraspReach(Eigen::Vector3d _pos, Eigen::Vector3d _offset, aero::arm _arm);
 
   public: bool placeCoffeeReach(Eigen::Vector3d _pos=Eigen::Vector3d(0.75, -0.25, 1.05), double _offset_y=0.0, aero::arm _arm=aero::arm::rarm, const float y_rot=45.0, const bool reset=true);
   public: void sendResetPose();
@@ -170,6 +178,10 @@ namespace aero {
 
   private: void ategiCallback_(const linemod_msgs::Scored2DBoxArray::ConstPtr _ategi);
 
+  private: void diffCallback_(const geometry_msgs::Pose2D::ConstPtr _diff);
+
+  private: void houghCallback_(const opencv_apps::LineArrayStamped::ConstPtr _msg);
+
   // private: void polygonCallback_(const jsk_recognition_msgs::PolygonArray _polygons);
 
   private: void handCallback_(const aero_recognition_msgs::Scored2DBoxArray::ConstPtr _hand_boxes);
@@ -213,8 +225,9 @@ namespace aero {
 
   public: bool calcAdjustmentError(aero::baserot &base);
 
-  public: bool calcAdjustmentError(bool &use_base, std::vector<std::string> _items,
-                                   int &_r_error, int &_l_error);
+  public: bool calcAdjustmentError(bool &use_base, std::vector<std::string> _items, int _index);
+
+  public: bool ategiFineTuning(std::string _name, int &_r_error, int &_l_error);
 
   public: bool makeAdjustableTrajectory(std::vector<aero::trajectory> &_adjust_tra, const std::vector<aero::Vector3> &_r_contact_point,const std::vector<aero::Vector3> &_l_contact_point, aero::arm _arm, aero::trajectory &_tra);
 
@@ -260,6 +273,10 @@ namespace aero {
 
   private: linemod_msgs::Scored2DBoxArray ategi_msg_;
 
+  private: geometry_msgs::Pose2D diff_msg_;
+
+  private: opencv_apps::LineArrayStamped hough_msg_;
+
   private: geometry_msgs::PoseArray centroid_msg_;
 
   // private: jsk_recognition_msgs::PolygonArray polygon_msg_;
@@ -286,6 +303,10 @@ namespace aero {
 
   private: ros::Subscriber ategi_sub_;
 
+  private: ros::Subscriber diff_sub_;
+
+  private: ros::Subscriber hough_sub_;
+
   // private: ros::Subscriber cluster_sub_;
 
   private: ros::Publisher speak_pub_;
@@ -300,6 +321,8 @@ namespace aero {
 
   private: ros::ServiceClient linemod_client;
 
+  private: ros::ServiceClient watch_model_srv_;
+
   private: ar_track_alvar_msgs::AlvarMarkers ar_msg_;
 
   private: tf::TransformListener tf_listener_;
@@ -307,6 +330,8 @@ namespace aero {
   public: bool interaction_flag;
 
   public: std::mutex flag_mutex;
+
+  public: float edge_angle_;
 
   };
 

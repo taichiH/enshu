@@ -6,6 +6,7 @@ namespace aero {
   DevelLib::DevelLib(ros::NodeHandle _nh, aero::interface::AeroMoveitInterface::Ptr _controller, Eigen::Vector3d _cam_pos, Eigen::Quaterniond _cam_qua)
     : nh_(_nh), controller_(_controller)
   {
+    hough_msg_ = opencv_apps::LineArrayStamped();
     usleep(1000 * 1000);
     // controller_->setPoseVariables(aero::pose::reset);
     // controller_->sendModelAngles(2000);
@@ -20,12 +21,16 @@ namespace aero {
     // polygon_sub_ = nh_.subscribe("/polygon_magnifier/output", 1, &DevelLib::polygonCallback_, this);
     centroid_sub_ = nh_.subscribe("/segmentation_decomposer/centroid_pose_array", 1, &DevelLib::centroidCallback_, this);
     ategi_sub_  = nh_.subscribe("online_template_creator/ategi_out", 1, &DevelLib::ategiCallback_, this);
+    diff_sub_ = nh_.subscribe("/model_diff", 1, &DevelLib::diffCallback_, this);
+    hough_sub_ = nh_.subscribe("/hough_lines/lines", 1, &DevelLib::houghCallback_, this);
+
     fcn_starter_ = nh_.serviceClient<std_srvs::SetBool>("/object_detector/set_mode");
     ar_sub_ = nh_.subscribe("/ar_pose_marker", 1, &DevelLib::arMarkerCallback_, this);
     ar_start_pub_ = nh_.advertise<std_msgs::Bool>("/ar_track_alvar/enable_detection", 1);
     initialpose_pub_ = nh_.advertise<geometry_msgs::PoseWithCovarianceStamped>("/initialpose", 1);
     speak_pub_ = nh_.advertise<std_msgs::String>("/windows/voice", 10);
     linemod_client = nh_.serviceClient<std_srvs::Empty>("/online_template_creator/create_frag");
+    watch_model_srv_ = nh_.serviceClient<std_srvs::SetBool>("/watch_model");
   }
 
   //////////////////////////////////////////////////////////
@@ -434,6 +439,77 @@ namespace aero {
   }
 
   //////////////////////////////////////////////////////////
+  bool DevelLib::watchModel(){
+    ROS_INFO("watchModel");
+    std_srvs::SetBool srv;
+    srv.request.data = true;
+    bool watch = watch_model_srv_.call(srv);
+    if(watch){
+      ROS_INFO("service call success");
+    } else {
+      ROS_INFO("service call failed");
+    }
+
+    return watch;
+  }
+
+  //////////////////////////////////////////////////////////
+  bool DevelLib::watchDiff(std::vector<float> &_diffs){
+    // x: p_j_diff, y: c_p_diff
+    _diffs.push_back(diff_msg_.x);
+    _diffs.push_back(diff_msg_.y);
+  }
+
+  //////////////////////////////////////////////////////////
+  bool DevelLib::watchHough(float &_deg, float &_a, float &_py2, float &_px2){
+    std::cout << "-------------------" << std::endl;
+    hough_msg_ = opencv_apps::LineArrayStamped();
+    ros::Time now = ros::Time::now();
+    for (int i = 0; i < 20; ++i) {
+      ros::spinOnce();
+      if (hough_msg_.header.stamp > now) break;
+      usleep(100 * 1000);
+    }
+    std::vector<opencv_apps::Line> lines;
+
+
+    for (auto line : hough_msg_.lines) {
+      lines.push_back(line);
+    }
+
+    std::cout << lines.size() << std::endl;
+    if(lines.size() <= 0)
+      return false;
+
+
+    std::sort(lines.begin(), lines.end(),
+              [](const opencv_apps::Line &left,
+                 const opencv_apps::Line &right)
+              {return left.pt1.y > right.pt1.y;});
+
+
+    float x_diff = lines.at(0).pt2.x - lines.at(0).pt1.x;
+    float y_diff = lines.at(0).pt1.y - lines.at(0).pt2.y;
+
+    _py2 = lines.at(0).pt2.y;
+    _px2 = lines.at(0).pt2.x;
+
+    std::cout << "px1: " << lines.at(0).pt1.x << ", px2: " << lines.at(0).pt2.x << std::endl;
+    std::cout << "py1: " << lines.at(0).pt1.y << ", py2: " << lines.at(0).pt2.y << std::endl;
+    std::cout << x_diff << ", "<< y_diff << std::endl;
+
+    _a = y_diff / x_diff;
+
+    _deg = std::atan(y_diff / x_diff);
+    edge_angle_ = _deg;
+
+    std::cout << "rad: " << _deg << std::endl;
+    std::cout << "deg: " << _deg * 180 /M_PI << std::endl;
+
+    return true;
+  }
+
+  //////////////////////////////////////////////////////////
   bool DevelLib::watchFlag(const double &_norm, const double &_min, double _max, const int &_index){
     if((_norm > _min) && (_norm < _max) && (_index < 2)){
       return true;
@@ -478,39 +554,25 @@ namespace aero {
     return true;
   }
 
-  bool DevelLib::holdItemSide(Eigen::Vector3d _pos, Eigen::Vector3d _offset, aero::arm _arm) {
+  bool DevelLib::holdItemSide(Eigen::Vector3d _pos, aero::Vector3 _offset, aero::arm _arm) {
     ROS_INFO("called %s", __FUNCTION__);
-    sideGraspReach(_pos, _offset.x(), _arm);
-    graspCoffee(_arm);
-    placeCoffeeReturn();
+    sideGraspReach(_pos, _offset, _arm);
     return true;
   }
 
   //////////////////////////////////////////////////////////
-  bool DevelLib::sideGraspReach(Eigen::Vector3d _pos, double _offset_x, aero::arm _arm) {
-    double factor = 0.8;
-
-    if(!tra_.empty())
-      tra_.clear();
-
-    // make trajectory
-    bool res = makeSideGrasp(_arm, _pos, tra_);
-
-    if (!res) {
-      ROS_WARN("%s: side grasp reach ik failed", __FUNCTION__);
-      return false;
+  bool DevelLib::sideGraspReach(Eigen::Vector3d _pos, Eigen::Vector3d _offset, aero::arm _arm) {
+    aero::Translation adjust_pos = {_pos.x(), _pos.y(), _pos.z()};
+    aero::Quaternion adjust_rot = {0.963, 0.002, -0.009, -0.269};
+    aero::Transform adjust_pose = adjust_pos * adjust_rot;
+    bool adjust_ik = controller_->setFromIK(_arm, aero::ikrange::wholebody, adjust_pose, aero::eef::grasp);
+    if (adjust_ik) {
+      controller_->sendModelAngles(3000);
+      sleep(3);
+    } else {
+      ROS_INFO("ik failed");
     }
 
-    flag_mutex.lock();
-    bool flag = interaction_flag;
-    flag_mutex.unlock();
-
-    ROS_INFO("> tra size is %d", static_cast<int>(tra_.size()));
-    if(!flag){
-      ROS_INFO("flag: %d", static_cast<int>(flag));
-      controller_->sendTrajectory(tra_, calcTrajectoryTimes(tra_, 0.8), aero::ikrange::wholebody);
-      controller_->waitInterpolation();
-    }
     return true;
   }
 
@@ -692,7 +754,7 @@ namespace aero {
     if (!fcn_starter_.call(srv))
       ROS_WARN("%s: start service call failed", __FUNCTION__);
     else
-      ROS_INFO("%s: FCN start", __FUNCTION__);
+      // ROS_INFO("%s: FCN start", __FUNCTION__);
     return;
   }
 
@@ -754,7 +816,8 @@ namespace aero {
       if(_debug)
         ROS_WARN("%s:item %s x:%f y:%f z:%f", __FUNCTION__, box.label.c_str(), item_tmp.position.x(), item_tmp.position.y(), item_tmp.position.z());
     }
-    ROS_WARN("%s:%d items are found", __FUNCTION__, id);
+    if(_debug)
+      ROS_WARN("%s:%d items are found", __FUNCTION__, id);
     // refresh msg
     fcn_msg_ = aero_recognition_msgs::LabeledPoseArray();
 
@@ -773,9 +836,9 @@ namespace aero {
     std::vector<linemod_msgs::Scored2DBox> result;
     linemod_msgs::Scored2DBox linemod_box;
     for (auto box : linemod_box_msg_.boxes) {
-      if(box.label == name)
-        ROS_WARN("box.label: %s", box.label.c_str());
+      if(box.label == name){
         result.push_back(box);
+      }
     }
     return result;
   }
@@ -989,24 +1052,29 @@ namespace aero {
 
   //////////////////////////////////////////////////////////
   bool DevelLib::findLinemodBoxes(std::vector<linemod_msgs::Scored2DBox> &_boxes, std::string name){
+    std::cout << "11111111" << std::endl;
     _boxes.clear();
     _boxes = recognizeLinemodBoxes(name);
+
+    std::cout << _boxes.size() << std::endl;
 
     if(!_boxes.empty()){
       for(auto box : _boxes){
         float center_x = box.x + (box.width * 0.5);
         float center_y = box.y + (box.height + 0.5);
-        ROS_WARN("%s, score: %d,left_top: (%f, %f), box: (%f, %f)",
+        ROS_WARN("%s, score: %d,left_top: (%f, %f), deg: %d, box: (%f, %f)",
                  box.label.c_str(),
                  static_cast<int>(box.score),
                  static_cast<float>(box.x),
                  static_cast<float>(box.y),
+                 static_cast<int>(box.deg),
                  static_cast<float>(box.width),
                  static_cast<float>(box.height));
       }
       return true;
     } else {
-      ROS_INFO("not found linemod matching result");
+      ROS_INFO("not found %s's linemod matching result",
+               name.c_str());
       return false;
     }
   }
@@ -1044,7 +1112,7 @@ namespace aero {
     if (!fcn_starter_.call(srv))
       ROS_WARN("%s: stop service call failed", __FUNCTION__);
     else
-      ROS_INFO("%s: FCN stop", __FUNCTION__);
+      // ROS_INFO("%s: FCN stop", __FUNCTION__);
     return;
   }
 
@@ -1071,6 +1139,16 @@ namespace aero {
   //////////////////////////////////////////////////////////
   void DevelLib::ategiCallback_(const linemod_msgs::Scored2DBoxArray::ConstPtr _ategi){
     ategi_msg_ = *_ategi;
+  }
+
+  //////////////////////////////////////////////////////////
+  void DevelLib::diffCallback_(const geometry_msgs::Pose2D::ConstPtr _diff){
+    diff_msg_ = *_diff;
+  }
+
+  //////////////////////////////////////////////////////////
+  void DevelLib::houghCallback_(const opencv_apps::LineArrayStamped::ConstPtr _msg){
+    hough_msg_ = *_msg;
   }
 
   //////////////////////////////////////////////////////////
@@ -1473,11 +1551,6 @@ namespace aero {
       int error = (boxes.at(1).x + boxes.at(1).width * 0.5)
         - (boxes.at(0).x + boxes.at(0).width * 0.5);
 
-      ROS_INFO("--------------------------");
-      ROS_INFO("r_error: %d", r_error);
-      ROS_INFO("l_error: %d", l_error);
-      ROS_INFO("--------------------------");
-
       if(error < 0)
         return false;
 
@@ -1488,8 +1561,7 @@ namespace aero {
   }
 
   //////////////////////////////////////////////////////////
-  bool DevelLib::calcAdjustmentError(bool &use_base, std::vector<std::string> _items,
-                                     int &_r_error, int &_l_error){
+  bool DevelLib::calcAdjustmentError(bool &use_base, std::vector<std::string> _items, int _index){
     ROS_INFO("%s", __FUNCTION__);
     std::vector<linemod_msgs::Scored2DBox> tmp;
     std::vector<std::vector<linemod_msgs::Scored2DBox>> boxes;
@@ -1504,32 +1576,114 @@ namespace aero {
       boxes.push_back(tmp);
     }
 
-    // 0:pie, 1:juice
+    // 0:pie, 1:juice, 2:caffe
     int pie_left = static_cast<int>(boxes.at(0).at(0).x);
     int juice_right = static_cast<int>(boxes.at(1).at(0).x + boxes.at(1).at(0).width);
     int error = pie_left - juice_right;
-    ROS_INFO("---------------------------------");
-    ROS_INFO("pie_left: %d", pie_left);
-    ROS_INFO("juice_right: %d", juice_right);
-    ROS_INFO("error: %d", error);
-    ROS_INFO("---------------------------------");
 
-    if(error < 10){
+    if(_index == 2){
+      int pie_right = static_cast<int>(boxes.at(0).at(0).x + boxes.at(0).at(0).width);
+      int caffe_left = static_cast<int>(boxes.at(2).at(0).x);
+      error = caffe_left - pie_right;
+    }
+
+
+    std::cerr << "error: " << error << std::endl;
+    if(error < 50){
       return false;
     } else {
       return true;
     }
 
-    // std::vector<linemod_msgs::Scored2DBox> ategi;
-    // bool ategi_found = findAtegi(ategi);
-    // if(ategi_found){
-    //   // left hand x < right hand x
-    //   std::sort(ategi.begin(), ategi.end(),
-    //             [](const linemod_msgs::Scored2DBox &left,
-    //                const linemod_msgs::Scored2DBox &right)
-    //             {return left.x < right.x;});
+
+    ///////////////////////////////
+    // ROS_INFO("---------------------------------debug");
+    // ROS_INFO("_index: %d", _index);
+    // std::vector<float> real_center_error;
+    // real_center_error.push_back(boxes.at(0).at(0).x +
+    //                             boxes.at(0).at(0).width * 0.5 -
+    //                             boxes.at(1).at(0).x +
+    //                             boxes.at(1).at(0).width * 0.5);
+
+    // std::vector<float> center_error;
+    // std::vector<std::string> debug_str=
+    //   {"pie center - juice center",
+    //    "caffe center - pie center"};
+    // watchDiff(center_error);
+
+    // int count = 0;
+    // for(auto err : center_error){
+    //   ROS_INFO("%s: %f", debug_str.at(count).c_str(), err);
+    //   count++;
+    // }
+    // ROS_INFO("center_error.at(_index): %f", center_error.at(_index));
+    // ROS_INFO("---------------------------------");
+
+    // int thresh = 265;
+    // if(_index == 2)
+    //   thresh = 200;
+
+    // if(center_error.at(_index) < thresh){
+    //   ROS_INFO("fugafugafuga");
+    //   return false;
+    // } else {
+    //   return true;
+    // }
   }
 
+  //////////////////////////////////////////////////////////
+  bool DevelLib::ategiFineTuning(std::string _name, int &_r_error, int &_l_error){
+    ROS_INFO("%s", __FUNCTION__);
+    std::vector<linemod_msgs::Scored2DBox> boxes;
+    bool boxes_found = findLinemodBoxes(boxes, _name);
+    int box_left;
+    int box_right;
+    if(boxes_found){
+      std::sort(boxes.begin(), boxes.end(),
+                [](const linemod_msgs::Scored2DBox &left,
+                   const linemod_msgs::Scored2DBox &right)
+                {return left.x < right.x;});
+      box_left = static_cast<int>(boxes.at(0).x);
+
+      std::sort(boxes.begin(), boxes.end(),
+                [](const linemod_msgs::Scored2DBox &left,
+                   const linemod_msgs::Scored2DBox &right)
+                {return left.x > right.x;});
+      box_right = static_cast<int>(boxes.at(0).x + boxes.at(0).width);
+    }
+
+    std::vector<linemod_msgs::Scored2DBox> ategi;
+    bool ategi_found = findAtegi(ategi);
+    if(ategi_found){
+      std::sort(ategi.begin(), ategi.end(),
+                [](const linemod_msgs::Scored2DBox &left,
+                   const linemod_msgs::Scored2DBox &right)
+                {return left.x < right.x;});
+      int l_ategi_right = static_cast<int>(ategi.at(0).x + ategi.at(0).width);
+      int r_ategi_left = static_cast<int>(ategi.at(1).x);
+
+      _r_error = r_ategi_left - box_right;
+      _l_error = box_left - l_ategi_right;
+
+      ROS_INFO("============debug=============");
+      ROS_INFO("box_left: %d", box_left);
+      ROS_INFO("box_right: %d", box_right);
+      ROS_INFO("l_ategi_right: %d",l_ategi_right);
+      ROS_INFO("r_ategi_left: %d",r_ategi_left);
+      ROS_INFO("_r_error: %d",_r_error);
+      ROS_INFO("_l_error: %d",_l_error);
+      ROS_INFO("============debug=============");
+
+      if(_r_error < 100 && _l_error < 100){
+        ROS_INFO("_r_error < 50 && _l_error < 50");
+        return false;
+      }
+    } else {
+      ROS_WARN("ategi not found");
+      return true;
+    }
+
+  }
 
   //////////////////////////////////////////////////////////
   bool DevelLib::makeAdjustableTrajectory(std::vector<aero::trajectory> &_adjust_tra, const std::vector<aero::Vector3> &_r_contact_point,const std::vector<aero::Vector3> &_l_contact_point, aero::arm _arm, aero::trajectory &_tra){
