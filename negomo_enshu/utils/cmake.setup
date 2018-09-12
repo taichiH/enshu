@@ -90,22 +90,22 @@ endif()
 
 set(FOUND_HMMLIB 0)
 if(FOUND_HMMLIB)
-  message(STATUS "found hmmlib")
-  include_directories() #hmmlib
-  link_directories() #hmmlib
-  add_library(hmmlib
+  message(STATUS "found hmmlib_enshu")
+  include_directories() #hmmlib_enshu
+  link_directories() #hmmlib_enshu
+  add_library(hmmlib_enshu
     STATIC
     )
   SET_TARGET_PROPERTIES(
-    hmmlib
+    hmmlib_enshu
     PROPERTIES
     LINKER_LANGUAGE C
     )
   add_executable(negotiation_model src/main.cc src/negomo.cc src/test.cc)
-  target_link_libraries(negotiation_model ${catkin_LIBRARIES} hmmlib)
+  target_link_libraries(negotiation_model ${catkin_LIBRARIES} hmmlib_enshu)
   add_dependencies(negotiation_model negomo_enshu_generate_messages_cpp)
 else()
-  message(WARNING "hmmlib not found, not compiling some codes")
+  message(WARNING "hmmlib_enshu not found, not compiling some codes")
 endif()
 
 # compile if appl is found
